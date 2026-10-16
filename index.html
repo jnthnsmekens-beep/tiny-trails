@@ -1,10 +1,10 @@
-<!DOCTYPE html><html lang="en"><head><link rel="icon" href="data:,"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no,viewport-fit=cover">
+<!DOCTYPE html><html lang="en"><head><link rel="icon" type="image/png" href="icons/favicon-64.png"><link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="icons/apple-touch-icon-180.png"><meta name="theme-color" content="#6f7a4a"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="Tiny Trails"><meta name="application-name" content="Tiny Trails"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no,viewport-fit=cover">
 <title>Tiny Trails – a cozy bug-spotting adventure</title>
 <meta name="description" content="Sneak, snap and collect 17 tiny creatures on the forest floor. Daily trail challenge!">
-<style>
+<style>html,body{overscroll-behavior:none;-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}.screen{padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom);padding-left:env(safe-area-inset-left);padding-right:env(safe-area-inset-right)}
 *{box-sizing:border-box}html,body{margin:0;height:100%;overflow:hidden;background:#2c3315;font-family:Georgia,'Palatino Linotype','Book Antiqua',Palatino,serif;touch-action:none;user-select:none;-webkit-user-select:none;color:#4a3418}
 canvas{display:block;position:fixed;inset:0}
-.hud{position:fixed;top:10px;left:10px;right:10px;display:flex;gap:8px;align-items:center;pointer-events:none;z-index:3;transition:opacity .4s}
+.hud{position:fixed;top:calc(10px + env(safe-area-inset-top));left:calc(10px + env(safe-area-inset-left));right:calc(10px + env(safe-area-inset-right));display:flex;gap:8px;align-items:center;pointer-events:none;z-index:3;transition:opacity .4s}
 .pill{background:linear-gradient(#8a6a34ee,#55391aee);border:2px solid #f0d58e;color:#fff6dc;font-weight:700;padding:6px 12px;border-radius:22px;box-shadow:0 3px 10px #0006,inset 0 1px 0 #ffe9b066;text-shadow:0 1px 2px #2a1a05;font-size:17px;white-space:nowrap;transition:transform .25s cubic-bezier(.3,2,.5,1)}
 .pill.bump{transform:scale(1.25)}
 .sp{flex:1}
@@ -40,7 +40,7 @@ button.n{background:linear-gradient(#c9a66b,#9a7438);box-shadow:0 5px 0 #5e4219,
 .front h2{margin:2px 0;color:#6a3a10}
 .shine{position:absolute;inset:0;background:linear-gradient(115deg,transparent 30%,#fff8 45%,transparent 60%);background-size:250% 100%;background-position:-100% 0;animation:sh 1.6s .6s ease-out both}
 @keyframes sh{from{background-position:150% 0}to{background-position:-100% 0}}
-#toast{position:fixed;left:50%;bottom:24px;transform:translate(-50%,40px);opacity:0;transition:all .35s cubic-bezier(.3,1.6,.5,1);z-index:4;background:linear-gradient(#fff6dc,#f0dcaa);border:2px solid #b48a4a;border-radius:14px;padding:10px 16px;box-shadow:0 6px 20px #0006;max-width:88vw;text-align:center;font-size:15px;pointer-events:none}
+#toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom));transform:translate(-50%,40px);opacity:0;transition:all .35s cubic-bezier(.3,1.6,.5,1);z-index:4;background:linear-gradient(#fff6dc,#f0dcaa);border:2px solid #b48a4a;border-radius:14px;padding:10px 16px;box-shadow:0 6px 20px #0006;max-width:88vw;text-align:center;font-size:15px;pointer-events:none}
 #toast.on{transform:translate(-50%,0);opacity:1}
 .hats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:10px 0}
 .hat{background:#fff6dc;border:2px solid #c9a35a;border-radius:12px;padding:6px;cursor:pointer;font-size:13px}.hat.sel{border-color:#d4501f;box-shadow:0 0 0 3px #f3935066}.hat.lock{opacity:.6}
@@ -73,5 +73,5 @@ input[type=range]{width:60%;accent-color:#d4501f;vertical-align:middle}
 <div class="screen hide dim" id="reveal"></div>
 <div class="screen hide dim" id="sEnd"><div class="parch" style="max-width:min(760px,94vw)"><h1 class="logo" style="font-size:44px" id="eTitle"></h1><p id="eSub" style="font-size:18px;margin:.4em"></p><div id="eGridEmoji" style="font-size:20px;letter-spacing:2px"></div><div class="grid" id="eGrid"></div>
 <div class="row"><button class="b" id="bShare">📋 Share result</button><button class="b g" id="bAgain">🍃 Play again</button><button class="b n" id="bMenu">🏠 Menu</button></div><p class="small" id="eCopied"></p></div></div>
-<script src="game.js?v=9"></script>
+<script src="game.js?v=10"></script>
 </body></html>

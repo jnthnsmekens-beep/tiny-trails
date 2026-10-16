@@ -1,3 +1,4 @@
+const SAFE={l:0,r:0,t:0,b:0};(()=>{const p=document.createElement('div');p.style.cssText='position:fixed;visibility:hidden;pointer-events:none;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)';const rd=()=>{if(!document.body)return;if(!p.isConnected)document.body.appendChild(p);const c=getComputedStyle(p);SAFE.t=parseFloat(c.paddingTop)||0;SAFE.r=parseFloat(c.paddingRight)||0;SAFE.b=parseFloat(c.paddingBottom)||0;SAFE.l=parseFloat(c.paddingLeft)||0};addEventListener('resize',rd);addEventListener('orientationchange',()=>setTimeout(rd,300));if(document.body)rd();else addEventListener('DOMContentLoaded',rd)})();
 'use strict';
 // ===== Tiny Trails v2 =====
 const $=id=>document.getElementById(id);
@@ -709,7 +710,7 @@ drawMinimap=function(){if(!G)return;
  if(N>.05){x.save();x.globalCompositeOperation='lighter';const gl=(wx,wy,rr,col,a)=>{let sx=(wx-cam.x)*zoom+W/2,sy=(wy-cam.y)*zoom+H/2;rr*=zoom;if(sx<-rr||sy<-rr||sx>W+rr||sy>H+rr)return;let q=x.createRadialGradient(sx,sy,0,sx,sy,rr);q.addColorStop(0,`rgba(${col},${a})`);q.addColorStop(1,`rgba(${col},0)`);x.fillStyle=q;x.fillRect(sx-rr,sy-rr,rr*2,rr*2)};
   for(const d of nearDecor(TALL_G,cam.x-W/zoom,cam.y-H/zoom,cam.x+W/zoom,cam.y+H/zoom,100)){if(d.k=='blueshroom')gl(d.x,d.y-25,60,'90,170,255',.35*N);else if(d.k=='crystalrock')gl(d.x,d.y-30,80,'120,220,255',.3*N)}
   for(const o of G.items)if(!o.got&&o.it.id=='glowshroom')gl(o.x,o.y-15,70,'200,120,255',.45*N);x.restore()}
- const S_=Math.min(130,W*.28),ox=10,oy=H-S_-10;x.save();x.fillStyle='rgba(78,56,21,.85)';x.strokeStyle='#f0d58e';x.lineWidth=2;x.beginPath();x.roundRect(ox-4,oy-4,S_+8,S_+8,12);x.fill();x.stroke();x.beginPath();x.roundRect(ox,oy,S_,S_,9);x.clip();x.imageSmoothingEnabled=true;x.drawImage(FOG.map,ox,oy,S_,S_);x.drawImage(FOG.fog,ox,oy,S_,S_);
+ const S_=Math.min(130,W*.28),ox=10+SAFE.l,oy=H-S_-10-SAFE.b;x.save();x.fillStyle='rgba(78,56,21,.85)';x.strokeStyle='#f0d58e';x.lineWidth=2;x.beginPath();x.roundRect(ox-4,oy-4,S_+8,S_+8,12);x.fill();x.stroke();x.beginPath();x.roundRect(ox,oy,S_,S_,9);x.clip();x.imageSmoothingEnabled=true;x.drawImage(FOG.map,ox,oy,S_,S_);x.drawImage(FOG.fog,ox,oy,S_,S_);
  const s=S_/MW;x.fillStyle='#ff6a4a';x.beginPath();x.arc(ox+G.P.x*s,oy+G.P.y*s,4,0,TAU);x.fill();x.strokeStyle='#fff';x.lineWidth=1.5;x.stroke();x.restore()};
 // ----- journal with tabs -----
 let jTab='bug';const tabs=document.createElement('div');tabs.className='row';tabs.style.margin='8px 0';$('jGrid').before(tabs);
@@ -1523,3 +1524,8 @@ let ab9=0;const _upd9=update;update=function(dt){_upd9(dt);if(!G||state!='play')
  if(SV.d.playT%10<dt)SV.save()};
 syncBuilds();
 window.__v9={openMake,closeMake,addBowl,grind,finishMix,plant,harvest,wear,sprout,giftFx,nearFriend,PAINT,tinted,renderMake,get mkTab(){return mkTab},set mkTab(v){mkTab=v}};
+
+// ===== PWA: service worker (offline + update-on-reload) =====
+if('serviceWorker' in navigator&&location.protocol!='file:'){addEventListener('load',()=>{navigator.serviceWorker.register('sw.js').then(r=>{r.update&&r.update()}).catch(()=>{});let had=!!navigator.serviceWorker.controller,re=false;navigator.serviceWorker.addEventListener('controllerchange',()=>{if(had&&!re&&state!='play'&&state!='craft'){re=true;location.reload()}had=true})})}
+// standalone: resume audio when returning to the app
+addEventListener('pageshow',()=>{const A=S.ctx&&S.ctx();if(A&&A.state!='running'&&MU.unlocked)A.resume().catch(()=>{})});
