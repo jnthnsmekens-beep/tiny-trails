@@ -1,0 +1,21 @@
+Tiny Trails – asset credits & licenses
+=======================================
+Original (made for this project, by Grok Bot for Jonathan Smekens):
+- theme-preview.mp3 / theme loop: original composition "Tiny Trails Theme", rendered with synthesized
+  music box, kalimba and Karplus-Strong plucked guitar (numpy). No existing melodies used.
+- discovery-jingle.mp3: original, reuses the theme's opening motif.
+- ground.jpg: procedurally painted moss texture (numpy/PIL).
+- All sprites (Lottie, insects, decorations, UI) are drawn in code on <canvas>.
+- UI pops, dew tinkles, camera shutter, owl hoot, bee buzz, hit thump: synthesized with the Web Audio API.
+
+Recorded sounds (all CC0 / public domain, no attribution required; credited anyway):
+- birds.mp3 – "Ambient Bird Sounds" by isaiah658, CC0
+  https://opengameart.org/content/ambient-bird-sounds
+- crickets.mp3 – "Crickets Ambient Noise - loopable" by Wolfgang_ (Ted Kerr), CC0
+  https://opengameart.org/content/crickets-ambient-noise-loopable
+- rain.mp3 – "AMB Rain Loop 1" by Kresiek The Furry, CC0 (trimmed to 40 s, low-passed)
+  https://opengameart.org/content/amb-rain-loop-1
+- step1-3.mp3 – from "Fantozzi's Footsteps (Grass/Sand & Stone)" by Fantozzi (submitted by qubodup), CC0
+  (pitched up and high-passed to sound like tiny leaf-litter steps)
+  https://opengameart.org/content/fantozzis-footsteps-grasssand-stone
+Edits: converted to mono MP3, filtered/trimmed with ffmpeg.

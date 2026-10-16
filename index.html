@@ -1,0 +1,77 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no,viewport-fit=cover">
+<title>Tiny Trails – a cozy bug-spotting adventure</title>
+<meta name="description" content="Sneak, snap and collect 17 tiny creatures on the forest floor. Daily trail challenge!">
+<style>
+*{box-sizing:border-box}html,body{margin:0;height:100%;overflow:hidden;background:#2c3315;font-family:Georgia,'Palatino Linotype','Book Antiqua',Palatino,serif;touch-action:none;user-select:none;-webkit-user-select:none;color:#4a3418}
+canvas{display:block;position:fixed;inset:0}
+.hud{position:fixed;top:10px;left:10px;right:10px;display:flex;gap:8px;align-items:center;pointer-events:none;z-index:3;transition:opacity .4s}
+.pill{background:linear-gradient(#8a6a34ee,#55391aee);border:2px solid #f0d58e;color:#fff6dc;font-weight:700;padding:6px 12px;border-radius:22px;box-shadow:0 3px 10px #0006,inset 0 1px 0 #ffe9b066;text-shadow:0 1px 2px #2a1a05;font-size:17px;white-space:nowrap;transition:transform .25s cubic-bezier(.3,2,.5,1)}
+.pill.bump{transform:scale(1.25)}
+.sp{flex:1}
+.ib{pointer-events:auto;cursor:pointer;font-size:18px;padding:6px 10px;font-family:inherit}
+.screen{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;z-index:10;transition:opacity .45s}
+.screen.hide{opacity:0;pointer-events:none}
+.dim{background:radial-gradient(#2a1a0544,#140c03cc)}
+.parch{position:relative;background:linear-gradient(160deg,#fff8e2,#f2deac 60%,#e8cc8c);border:3px solid #a97c3c;border-radius:22px;box-shadow:0 14px 50px #000b,inset 0 0 40px #b98a4466,inset 0 0 0 6px #fff3d455;padding:22px 24px;max-width:min(560px,92vw);max-height:90vh;overflow:auto;text-align:center;animation:pop .5s cubic-bezier(.2,1.6,.4,1)}
+.parch:before{content:'';position:absolute;inset:8px;border:1.5px dashed #b48a4a88;border-radius:16px;pointer-events:none}
+@keyframes pop{from{transform:scale(.6) rotate(-3deg);opacity:0}}
+h1.logo{font-size:clamp(40px,9vw,64px);margin:0;color:#7a3e10;font-style:italic;letter-spacing:1px;text-shadow:0 2px 0 #fff4cf,0 4px 0 #c08a44,0 8px 16px #0005;line-height:1}
+.sub{font-style:italic;color:#7a5a2c;margin:.3em 0 1em}
+button.b{font-family:inherit;font-weight:700;font-size:18px;color:#fff;border:0;border-radius:14px;padding:12px 20px;margin:5px;cursor:pointer;background:linear-gradient(#f39350,#d4501f);box-shadow:0 5px 0 #8e2f10,0 8px 14px #0004;text-shadow:0 1px 1px #7a2a0a;transition:transform .12s}
+button.b:active{transform:translateY(4px);box-shadow:0 1px 0 #8e2f10}
+button.g{background:linear-gradient(#9cc75a,#5b8c2a);box-shadow:0 5px 0 #33561a,0 8px 14px #0004;text-shadow:0 1px 1px #23400f}
+button.n{background:linear-gradient(#c9a66b,#9a7438);box-shadow:0 5px 0 #5e4219,0 8px 14px #0004}
+.row{display:flex;flex-wrap:wrap;justify-content:center}
+.small{font-size:13px;color:#7a5a2c}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(78px,1fr));gap:8px;margin:12px 0}
+.card{border-radius:10px;padding:4px;background:#fff6dc;border:2px solid #c9a35a;font-size:11px;line-height:1.15;position:relative}
+.card canvas{position:static;width:100%;height:auto;display:block;border-radius:6px;background:radial-gradient(#fff3c0,#c8d880 50%,#6a8a30)}
+.card.rare{border-color:#4f8ad0;box-shadow:0 0 0 2px #9cc4f066}.card.legendary{border-color:#e0a920;box-shadow:0 0 10px #ffd34a}
+.card .nm{font-weight:700;margin-top:3px}
+.tag{font-size:10px;font-style:italic}
+#reveal{perspective:900px}
+.flip{width:min(300px,80vw);height:min(420px,70vh);position:relative;animation:flip .9s cubic-bezier(.3,1.4,.5,1) both}
+@keyframes flip{0%{transform:translateY(120px) scale(.3,.3) rotate(-12deg);filter:brightness(.4)}45%{transform:translateY(-10px) scale(.02,1) rotate(0);filter:brightness(.6)}100%{transform:none;filter:none}}
+.face{position:absolute;inset:0;backface-visibility:hidden;border-radius:18px;overflow:hidden}
+.back{transform:rotateY(180deg);background:repeating-linear-gradient(45deg,#8e5a22,#8e5a22 10px,#a06a2c 10px,#a06a2c 20px);border:4px solid #f0d58e}
+.front{animation:none;display:flex;flex-direction:column;padding:14px;text-align:center}
+.front canvas{position:static;width:100%;border-radius:12px;margin:6px 0;box-shadow:inset 0 0 20px #0004}
+.front .rar{font-size:13px;letter-spacing:2px;text-transform:uppercase;font-weight:700}
+.front h2{margin:2px 0;color:#6a3a10}
+.shine{position:absolute;inset:0;background:linear-gradient(115deg,transparent 30%,#fff8 45%,transparent 60%);background-size:250% 100%;background-position:-100% 0;animation:sh 1.6s .6s ease-out both}
+@keyframes sh{from{background-position:150% 0}to{background-position:-100% 0}}
+#toast{position:fixed;left:50%;bottom:24px;transform:translate(-50%,40px);opacity:0;transition:all .35s cubic-bezier(.3,1.6,.5,1);z-index:4;background:linear-gradient(#fff6dc,#f0dcaa);border:2px solid #b48a4a;border-radius:14px;padding:10px 16px;box-shadow:0 6px 20px #0006;max-width:88vw;text-align:center;font-size:15px;pointer-events:none}
+#toast.on{transform:translate(-50%,0);opacity:1}
+.hats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:10px 0}
+.hat{background:#fff6dc;border:2px solid #c9a35a;border-radius:12px;padding:6px;cursor:pointer;font-size:13px}.hat.sel{border-color:#d4501f;box-shadow:0 0 0 3px #f3935066}.hat.lock{opacity:.6}
+.hat canvas{position:static;width:64px;height:64px}
+#stick{position:fixed;width:110px;height:110px;border-radius:50%;border:3px solid #fff6;background:#0002;pointer-events:none;z-index:2;display:none;transform:translate(-50%,-50%)}
+#stick i{position:absolute;left:50%;top:50%;width:44px;height:44px;margin:-22px;border-radius:50%;background:#fff8;box-shadow:0 2px 6px #0005}
+#flash{position:fixed;inset:0;background:#fff;opacity:0;pointer-events:none;z-index:5;transition:opacity .5s}
+.plank{display:inline-block;padding:8px 26px 12px;margin:-4px 0 6px;border-radius:14px;background:linear-gradient(#e8c890,#c89a58 55%,#a87838);border:3px solid #6a4418;box-shadow:0 6px 0 #4a2e10,0 10px 20px #0006,inset 0 2px 0 #fff4d0aa;position:relative}
+.plank:before,.plank:after{content:'';position:absolute;top:50%;width:10px;height:10px;margin-top:-5px;border-radius:50%;background:radial-gradient(#8a6a3a,#3a2410)}.plank:before{left:8px}.plank:after{right:8px}
+.plank h1.logo{color:#4a2a0c;text-shadow:0 2px 0 #f8e0b0,0 3px 6px #0004}
+input[type=range]{width:60%;accent-color:#d4501f;vertical-align:middle}
+</style></head><body>
+<canvas id="c"></canvas>
+<div id="stick"><i></i></div><div id="flash"></div>
+<div class="hud" id="hud" style="opacity:0">
+<span class="pill" id="hBugs">📸 0/17</span><span class="pill" id="hDew">💧 0</span><span class="pill" id="hHearts">❤️❤️❤️</span><span class="sp"></span>
+<span class="pill" id="hTime">⏱ 2:30</span>
+<button class="b n ib" id="bJournal" title="Journal">📖</button><button class="b n ib" id="bDN" title="Day / night">🌙</button><button class="b n ib" id="bMute" title="Sound">🔊</button>
+</div>
+<div id="toast"></div>
+<div class="screen" id="sTitle"><div class="parch" style="max-width:min(460px,92vw)">
+<div class="plank"><h1 class="logo">Tiny Trails</h1></div><div class="sub">a cozy bug-spotting adventure</div>
+<p style="margin:.2em 0 .8em">Guide <b>Lottie</b> the ladybug explorer across the forest floor. <b>Sneak</b> up on 17 tiny creatures and snap their photo for your journal. Some only come out at night…</p>
+<div class="row"><button class="b" id="bDaily">🌅 Daily Trail</button><button class="b g" id="bFree">🍃 Free Explore</button></div>
+<div class="row"><button class="b n" id="bHats">🎩 Hats</button><button class="b n" id="bHelp">❓ How to play</button></div>
+<p class="small" id="tStats"></p></div></div>
+<div class="screen hide dim" id="sHelp"><div class="parch"><h2>How to play</h2><p style="text-align:left;font-size:15px">🐞 <b>Move</b>: arrow keys / WASD, or drag anywhere on mobile.<br>🤫 <b>Sneak</b>: hold <b>Shift</b> (or drag just a little). Rush in and bugs get spooked <b>!</b> and flee.<br>📸 <b>Photograph</b>: stay close and still-ish until the ring fills.<br>💧 <b>Dewdrops</b>: collect them to buy hats for Lottie.<br>🕷️ Spiders hunt in the dark woods and the old log.<br>🐦 A <b>bird shadow</b> grows above you: run, or hide under a clover or mushroom!<br>🌧️ Rain leaves puddles that slow you down.<br>🌙 Night falls halfway: fireflies, moths and crickets appear.<br>⭐ Rarity: <span style="color:#3d7a1e">common</span> · <span style="color:#3a6fb0">rare</span> · <span style="color:#c08a10">legendary</span></p><button class="b" data-close="sHelp">Got it!</button></div></div>
+<div class="screen hide dim" id="sHats"><div class="parch"><h2>Lottie's hats</h2><div class="small" id="hatDew"></div><div class="hats" id="hatList"></div><button class="b" data-close="sHats">Done</button></div></div>
+<div class="screen hide dim" id="sJournal"><div class="parch" style="max-width:min(760px,94vw)"><h2>📖 Field journal</h2><div class="small" id="jSum"></div><div class="grid" id="jGrid"></div><button class="b" id="bJClose">Back to the trail</button></div></div>
+<div class="screen hide dim" id="reveal"></div>
+<div class="screen hide dim" id="sEnd"><div class="parch" style="max-width:min(760px,94vw)"><h1 class="logo" style="font-size:44px" id="eTitle"></h1><p id="eSub" style="font-size:18px;margin:.4em"></p><div id="eGridEmoji" style="font-size:20px;letter-spacing:2px"></div><div class="grid" id="eGrid"></div>
+<div class="row"><button class="b" id="bShare">📋 Share result</button><button class="b g" id="bAgain">🍃 Play again</button><button class="b n" id="bMenu">🏠 Menu</button></div><p class="small" id="eCopied"></p></div></div>
+<script src="game.js"></script>
+</body></html>
