@@ -1325,3 +1325,201 @@ applyCalm();if(CALM()&&$('hTime'))$('hTime').style.display='none';
 window.__v8={BUILD,toggleBuild,ghostAt,place,removeAt,takeMat};
 // calm: thin out small clutter
 const _bw8=buildWorld;buildWorld=function(seed){_bw8(seed);if(!CALM())return;const R=mulberry(seed+5),thin=new Set(['grass','clover','leafd','pebble','pinecone','seashell','fern']);DECOR=DECOR.filter(d=>!thin.has(d.k)||R()>.35);FLAT=DECOR.filter(d=>['leafd','lily','web'].includes(d.k));TALL=DECOR.filter(d=>!FLAT.includes(d));TALL_G=bucket(TALL);FLAT_G=bucket(FLAT)};
+// =====================================================================
+// v9: MAKING things — crafting, paint & decorate, gardening, leaf-canvas drawing, mosaics, gifts
+// =====================================================================
+Object.assign(MAT,{berry:{n:'Berry',e:'🫐',b:[]},herb:{n:'Herb',e:'🌱',b:[]},grass:{n:'Grass',e:'🌾',b:['meadow','dunes','pond']},flower:{n:'Flower',e:'🌼',b:['flowers','meadow']},seed:{n:'Seed',e:'🫘',b:['meadow','flowers']}});
+(()=>{const mk=fn=>{const c=document.createElement('canvas');c.width=c.height=40;const g=c.getContext('2d');g.translate(20,22);fn(g);return c};
+ MATI.berry=mk(g=>{for(const[a,b]of[[-5,2],[5,2],[0,-5]]){g.fillStyle='#4a5a9a';g.beginPath();g.arc(a,b,6,0,TAU);g.fill();g.fillStyle='rgba(255,255,255,.4)';g.beginPath();g.arc(a-2,b-2,1.6,0,TAU);g.fill()}});
+ MATI.herb=mk(g=>{g.fillStyle='#7aa050';for(const a of[-.6,0,.6]){g.save();g.rotate(a);g.beginPath();g.ellipse(0,-8,4,9,0,0,TAU);g.fill();g.restore()}});
+ MATI.grass=mk(g=>{g.strokeStyle='#a0b060';g.lineWidth=2;g.lineCap='round';for(let i=-3;i<=3;i++){g.beginPath();g.moveTo(i*2,10);g.quadraticCurveTo(i*3,-2,i*5,-14);g.stroke()}});
+ MATI.flower=mk(g=>{g.fillStyle='#f0d070';for(let i=0;i<6;i++){g.save();g.rotate(i*1.05);g.beginPath();g.ellipse(0,-7,3.5,6,0,0,TAU);g.fill();g.restore()}g.fillStyle='#c08030';g.beginPath();g.arc(0,0,3.5,0,TAU);g.fill()});
+ MATI.seed=mk(g=>{for(const[a,b,r]of[[-5,2,.4],[4,-2,-.3],[2,6,1]]){g.save();g.translate(a,b);g.rotate(r);g.fillStyle='#8a6a40';g.beginPath();g.ellipse(0,0,3,5,0,0,TAU);g.fill();g.restore()}})})();
+for(const k of['berry','herb','grass','flower','seed'])SV.d.mat[k]=SV.d.mat[k]||(k=='seed'?3:k=='grass'?2:0);
+SV.d.inv=SV.d.inv||{};SV.d.recipes=SV.d.recipes||[];SV.d.dyes=SV.d.dyes||[];SV.d.look=SV.d.look||{};SV.d.art=SV.d.art||[];SV.d.blooms=SV.d.blooms||[];SV.d.fgift=SV.d.fgift||{};SV.d.playT=SV.d.playT||0;
+// gathering: berries/herbs you collect also go into your bag; grass & flowers from tapping
+const _col9=collect;collect=function(o){_col9(o);if(o.it.c=='berry'||o.it.c=='herb'){SV.d.mat[o.it.c]=(SV.d.mat[o.it.c]||0)+1;floatTxt(o.x,o.y-20,'+1 '+MAT[o.it.c].e)}if(o.it.id=='seed'){SV.d.mat.seed+=2}SV.save()};
+const _react9=react;react=function(d,strong){const r=_react9(d,strong);if(r&&strong&&G){const k=['grass','dunegrass','reed'].includes(d.k)?'grass':['flower','wildflowers'].includes(d.k)?'flower':null;if(k&&fx()<.45){SV.d.mat[k]++;SV.save();floatTxt(d.x,d.y-30,'+1 '+MAT[k].e)}}return r};
+// ---------- recipes ----------
+const ITEMS9={
+ dye_rose:{n:'Rose Dye',e:'🩷',col:'#d89aa8',d:'A soft pink paint'},dye_berry:{n:'Blueberry Dye',e:'💙',col:'#7a8ab8',d:'A dusky blue paint'},dye_sun:{n:'Buttercup Dye',e:'💛',col:'#e8cc78',d:'A warm yellow paint'},
+ dye_moss:{n:'Moss Dye',e:'💚',col:'#8aa070',d:'A sage green paint'},dye_lav:{n:'Lavender Dye',e:'💜',col:'#a898c8',d:'A gentle lilac paint'},dye_peach:{n:'Peach Dye',e:'🧡',col:'#e8b090',d:'A peachy paint'},dye_bark:{n:'Bark Dye',e:'🤎',col:'#9a7a5a',d:'A cosy brown paint'},
+ tea:{n:'Herbal Tea',e:'🍵',use:'drink',d:'Warm and calming'},btea:{n:'Blossom Tea',e:'🫖',use:'drink',d:'Smells like spring'},
+ bloom:{n:'Bloom Potion',e:'🧪',use:'pour',d:'Pour it to make flowers grow'},seedbomb:{n:'Seed Bomb',e:'🟤',use:'throw',d:'Toss it and wildflowers sprout'},
+ plantern:{n:'Paper Lantern',e:'🏮',place:'plantern',d:'A leafy lantern to place'},chime:{n:'Wind Chime',e:'🎐',place:'chime',d:'Tinkles in the breeze'},swing:{n:'Rope Swing',e:'🪢',place:'swing',d:'A little swing to place'},
+ leafhat:{n:'Leaf Hat',e:'🍃',wear:'leaf',d:'Wear it, or gift it'},crown:{n:'Flower Crown',e:'🌸',wear:'flower',d:'Wear it, or gift it'},scarf:{n:'Grass Scarf',e:'🧣',wear:'scarf',d:'A cosy woven scarf'},
+ honey:{n:'Honey Jar',e:'🍯',d:'A sweet gift for a friend'},rope:{n:'Grass Rope',e:'🪢',ing:1,d:'Useful for making things'},
+ pebblepal:{n:'Pebble Friend',e:'🪨',d:'A happy little pebble with a face'},bouquet:{n:'Tiny Bouquet',e:'💐',d:'A sweet handful of blooms'},clover:{n:'Lucky Clover',e:'🍀',d:'Brings a cozy feeling'},shellnecklace:{n:'Shell Necklace',e:'📿',d:'Clinks softly'}};
+const RECIPES={'berry+petal':'dye_rose','berry+berry':'dye_berry','flower+petal':'dye_sun','herb+moss':'dye_moss','flower+herb':'dye_lav','petal+petal':'dye_peach','cap+twig':'dye_bark',
+ 'herb+herb':'tea','flower+herb+petal':'btea','flower+herb+shell':'bloom','moss+pebble+seed':'seedbomb','leaf+petal+twig':'plantern','shell+shell+twig':'chime','rope+twig+twig':'swing',
+ 'grass+leaf+leaf':'leafhat','flower+flower+grass':'crown','grass+grass+moss':'scarf','cap+flower+flower':'honey','grass+grass':'rope','flower+flower':'seeds','berry+herb+seed':'seeds'};
+ITEMS9.seeds={n:'Seeds',e:'🫘',mat:'seed',d:'+2 seeds for your garden'};
+const CUTE=['pebblepal','bouquet','clover','shellnecklace'];
+const ingName=k=>MAT[k]?MAT[k].e+' '+MAT[k].n:ITEMS9[k].e+' '+ITEMS9[k].n;
+const have=k=>MAT[k]?(SV.d.mat[k]||0):(SV.d.inv[k]||0);
+const take=(k,n=1)=>{if(MAT[k])SV.d.mat[k]-=n;else SV.d.inv[k]-=n};
+const give=(k,n=1)=>{if(MAT[k]){SV.d.mat[k]=(SV.d.mat[k]||0)+n;return}if(ITEMS9[k]&&ITEMS9[k].mat){SV.d.mat[ITEMS9[k].mat]+=2;return}SV.d.inv[k]=(SV.d.inv[k]||0)+n;if(ITEMS9[k]&&ITEMS9[k].col&&!SV.d.dyes.includes(k))SV.d.dyes.push(k)};
+// ---------- ASMR sounds ----------
+const SX9={grind(){for(let i=0;i<6;i++){nburst(320+fx()*200,.22,.06,1.4,i*.2);if(i%2)playB('stone'+(1+(fx()*3|0)),.25,1.4,0)}},
+ pour(){playB('water1',.5,.55);playB('water3',.35,.7);nburst(900,.8,.02,.6,.1)},brush(){nburst(4200,.35,.03,.5);nburst(2600,.3,.02,.6,.12)},
+ plant(){playB('moss'+(1+(fx()*3|0)),.6,.8);syn(140,.2,.06,'sine',.12,90)},pop(){syn(660,.25,.04,'sine',0,880);syn(990,.3,.025,'sine',.08)},
+ warm(){[0,2,4,7].forEach((n,i)=>syn(PENTA[n]*.5,1.6,.035,'sine',i*.18))}};
+// ---------- panel UI ----------
+const mk9=document.createElement('style');mk9.textContent=`#sMake canvas,#pal8 canvas{position:static;inset:auto;display:inline-block}#sMake #bowl,#sMake #leafC{display:block}
+#sMake .parch{max-width:min(94vw,760px);max-height:88vh;overflow:auto;background:rgba(255,248,230,.97)}
+#sMake .tabs{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;margin:6px 0 10px}#sMake .tabs .b{font-size:14px;padding:6px 10px}
+.mi{display:inline-flex;flex-direction:column;align-items:center;justify-content:center;width:66px;height:66px;margin:3px;border-radius:14px;background:rgba(240,225,190,.6);border:1px solid rgba(160,120,60,.3);cursor:grab;font-size:12px;color:#5a4a30;user-select:none;vertical-align:top}
+.mi canvas{width:34px;height:34px}.mi .e{font-size:26px;line-height:32px}.mi.off{opacity:.35}
+#bowl{width:220px;height:150px;margin:6px auto;display:block;touch-action:none}
+.rrow{font-size:14px;padding:4px 8px;border-bottom:1px dashed rgba(160,120,60,.3);text-align:left}
+.swatch{display:inline-block;width:34px;height:34px;border-radius:50%;margin:3px;border:3px solid transparent;cursor:pointer;vertical-align:middle}.swatch.on{border-color:#6a4a24}
+#leafC{touch-action:none;display:block;margin:6px auto;border-radius:12px;cursor:crosshair}`;document.head.appendChild(mk9);
+const sMake=document.createElement('div');sMake.className='screen hide dim';sMake.id='sMake';sMake.innerHTML='<div class="parch"><h2 style="margin:4px 0">🧶 Make</h2><div class="tabs" id="mkTabs"></div><div id="mkBody"></div><div style="margin-top:10px"><button class="b n" id="mkClose">Back to the trail</button></div></div>';document.body.appendChild(sMake);
+let mkTab='make',bowl=[],lastMade=null;
+const bMake=document.createElement('button');bMake.className='b n';bMake.id='bMake';bMake.textContent='🧶';bMake.title='Make (M)';bBuild.before(bMake);bMake.onclick=()=>{S.pop();openMake()};
+calmCSS.textContent+=`#bMake{opacity:.55;transform:scale(.82)}`;
+function openMake(t){if(state!='play')return;if(BUILD.on)toggleBuild();state='craft';mkTab=t||mkTab;sMake.classList.remove('hide');renderMake()}
+function closeMake(){sMake.classList.add('hide');state='play';bowl.forEach(k=>give(k));bowl=[];SV.save()}
+$('mkClose').onclick=()=>{S.pop();closeMake()};
+addEventListener('keydown',e=>{if(e.key.toLowerCase()=='m'&&!e.repeat){if(state=='play')openMake();else if(state=='craft')closeMake()}});
+function tile(k,off,extra=''){const it=ITEMS9[k];const d=document.createElement('div');d.className='mi'+(off?' off':'');d.dataset.k=k;d.draggable=true;
+ if(MAT[k]){const c=document.createElement('canvas');c.width=c.height=40;c.getContext('2d').drawImage(MATI[k],0,0);d.appendChild(c);d.insertAdjacentHTML('beforeend',`<div>${MAT[k].n} ${have(k)}</div>`)}else d.innerHTML=`<div class="e">${it.e}</div><div>${it.n.split(' ').slice(-1)[0]} ${extra||have(k)}</div>`;d.title=MAT[k]?MAT[k].n:it.n+' — '+it.d;return d}
+function renderMake(){const T=$('mkTabs');T.innerHTML='';for(const[k,l]of[['make','🥣 Mix'],['book','📖 Recipes'],['bag','🎒 Bag'],['paint','🎨 Paint'],['draw','🍃 Leaf canvas']]){const b=document.createElement('button');b.className='b '+(k==mkTab?'':'n');b.textContent=l;b.onclick=()=>{S.pop();mkTab=k;renderMake()};T.appendChild(b)}
+ const B=$('mkBody');B.innerHTML='';({make:renderMix,book:renderBook,bag:renderBag,paint:renderPaint,draw:renderDraw})[mkTab](B)}
+// ----- Mix -----
+function drawBowl(c,t=0,spin=0){const g=c.getContext('2d'),w=c.width,h=c.height;g.clearRect(0,0,w,h);g.save();g.translate(w/2,h*.62);
+ g.fillStyle='rgba(60,40,20,.18)';g.beginPath();g.ellipse(0,44,86,12,0,0,TAU);g.fill();const gr=g.createLinearGradient(-80,0,80,0);gr.addColorStop(0,'#8a6a48');gr.addColorStop(.5,'#c8a478');gr.addColorStop(1,'#7a5a38');g.fillStyle=gr;g.beginPath();g.ellipse(0,-6,84,26,0,0,Math.PI);g.quadraticCurveTo(-80,50,0,48);g.quadraticCurveTo(80,50,84,-6);g.fill();
+ g.fillStyle='#5a4028';g.beginPath();g.ellipse(0,-6,76,20,0,0,TAU);g.fill();bowl.forEach((k,i)=>{const a=i*2.1+spin*6,r=spin?26:i*24-24;g.save();g.translate(spin?Math.cos(a)*r:r,spin?Math.sin(a)*r*.35-6:-12);g.drawImage(MAT[k]?MATI[k]:mkEmoji(ITEMS9[k].e),-18,-18,36,36);g.restore()});
+ g.save();g.translate(40+Math.sin(spin*12)*14,-40);g.rotate(.6+Math.sin(spin*12)*.15);g.fillStyle='#b8a890';g.fillRect(-7,-46,14,50);g.beginPath();g.arc(0,4,10,0,TAU);g.fill();g.restore();g.restore()}
+const EMC={};function mkEmoji(e){if(EMC[e])return EMC[e];const c=document.createElement('canvas');c.width=c.height=40;const g=c.getContext('2d');g.font='30px serif';g.textAlign='center';g.textBaseline='middle';g.fillText(e,20,22);return EMC[e]=c}
+function renderMix(B){B.innerHTML=`<p class="small" style="margin:2px">Drag or tap 2–3 things into the bowl, then grind. Try anything!</p><canvas id="bowl" width="440" height="300"></canvas>
+ <div><button class="b" id="mxGo">🥣 Grind & mix</button> <button class="b n" id="mxClr">↩︎ Empty</button></div><div id="mxRes" style="min-height:26px;margin:6px;font-size:16px;color:#5a4a30">${lastMade||''}</div><div id="mxIng"></div>`;
+ const c=$('bowl');drawBowl(c);const ing=$('mxIng');const ks=[...Object.keys(MAT),...Object.keys(ITEMS9).filter(k=>ITEMS9[k].ing)];
+ for(const k of ks){const d=tile(k,have(k)<=0);d.onclick=()=>addBowl(k);d.addEventListener('dragstart',e=>e.dataTransfer.setData('text',k));ing.appendChild(d)}
+ c.addEventListener('dragover',e=>e.preventDefault());c.addEventListener('drop',e=>{e.preventDefault();addBowl(e.dataTransfer.getData('text'))});
+ $('mxClr').onclick=()=>{bowl.forEach(k=>give(k));bowl=[];S.pop();renderMake()};$('mxGo').onclick=grind}
+function addBowl(k){if(!k||bowl.length>=3||have(k)<=0){if(bowl.length>=3)toast('The bowl is full',1200);return}take(k);bowl.push(k);playB('rustle',.35,1.4);renderMake()}
+function grind(){if(bowl.length<2){toast('Add at least two things',1400);return}const c=$('bowl');SX9.grind();const t0=performance.now();
+ (function an(){const k=(performance.now()-t0)/1300;if(k<1&&c.isConnected){drawBowl(c,0,k);requestAnimationFrame(an)}else finishMix()})()}
+function finishMix(){const key=[...bowl].sort().join('+');let out=RECIPES[key],msg;
+ if(out){const it=ITEMS9[out],isNew=!SV.d.recipes.includes(key);if(isNew)SV.d.recipes.push(key);give(out);SX9.pop();if(isNew)SX9.warm();msg=`${it.e} ${isNew?'New recipe! ':''}You made <b>${it.n}</b>`}
+ else if(fx()<.35){out=CUTE[fx()*CUTE.length|0];give(out);SX9.pop();msg=`${ITEMS9[out].e} A happy accident: <b>${ITEMS9[out].n}</b>`}
+ else{bowl.forEach(k=>give(k));SX.chime(1);msg='🍂 Nothing yet... your things are back in your bag'}
+ bowl=[];SV.save();lastMade=msg;renderMake()}
+// ----- Recipe book -----
+function renderBook(B){const all=Object.keys(RECIPES);B.innerHTML=`<p class="small">${SV.d.recipes.length}/${all.length} recipes discovered</p>`+all.map(k=>{const kn=SV.d.recipes.includes(k),it=ITEMS9[RECIPES[k]];return`<div class="rrow">${kn?`${it.e} <b>${it.n}</b> = ${k.split('+').map(ingName).join(' + ')}`:`❔ ??? — ${k.split('+').length} ingredients${k.includes('flower')?' (one is a 🌼)':k.includes('shell')?' (one is a 🐚)':''}`}</div>`}).join('')}
+// ----- Bag -----
+function nearFriend(){if(!G)return null;let best=null,bd=280;for(const f of G.fr||[]){const d=dist(f.x,f.y,G.P.x,G.P.y);if(d<bd){bd=d;best={f,id:f.id}}}for(const n of G.npc||[]){const d=dist(n.x,n.y,G.P.x,G.P.y);if(d<bd){bd=d;best={n,id:n.f.id}}}return best}
+function renderBag(B){const ks=Object.keys(SV.d.inv).filter(k=>SV.d.inv[k]>0);if(!ks.length){B.innerHTML='<p>Your bag is empty. Mix something in the bowl!</p>';return}
+ B.innerHTML='<p class="small">Tap an item to use it</p><div id="bagG"></div><div id="bagA" style="margin-top:8px"></div>';const g=$('bagG');
+ for(const k of ks){const d=tile(k,false);d.onclick=()=>{S.pop();const it=ITEMS9[k],A=$('bagA'),fr=nearFriend();A.innerHTML=`<div style="margin-bottom:6px">${it.e} <b>${it.n}</b> — ${it.d}</div>`;
+   const act=(l,fn)=>{const b=document.createElement('button');b.className='b';b.style.margin='3px';b.textContent=l;b.onclick=()=>{S.pop();fn()};A.appendChild(b)};
+   if(it.wear)act('Wear',()=>{wear(k)});if(it.use=='drink')act('Sip',()=>{take(k);closeMake();drink()});if(it.use=='pour')act('Pour here',()=>{take(k);closeMake();pourBloom()});if(it.use=='throw')act('Toss',()=>{take(k);closeMake();seedBomb()});
+   if(it.place)act('Place',()=>{closeMake();BUILD.k=it.place;if(!BUILD.on)toggleBuild();else{renderPal();ghostAt(G.P.x+50,G.P.y+30)}});
+   act(fr?`🎁 Gift to ${FRI[fr.id].n.split(' ')[0]}`:'🎁 Gift (stand near a friend)',()=>{if(!fr){toast('Walk up to a friend first',1600);return}take(k);SV.d.fgift[fr.id]=k;SV.save();closeMake();giftFx(fr)})};g.appendChild(d)}}
+function wear(k){const it=ITEMS9[k];if(it.wear=='scarf'){SV.d.look.scarf=SV.d.look.scarf?0:1;toast(SV.d.look.scarf?'🧣 Cosy!':'Scarf off',1400)}else{if(!SV.d.hats.includes(it.wear))SV.d.hats.push(it.wear);SV.d.hat=SV.d.hat==it.wear?'safari':it.wear;toast(`${it.e} ${SV.d.hat==it.wear?'Looking lovely!':'Back to the safari hat'}`,1400)}SV.save();SX9.brush()}
+function drink(){emote('☕');SX9.pour();setTimeout(()=>{SX9.warm();toast('Ahh... warm and cosy ☁️',2000)},700);G.P.cozy=6}
+function giftFx(fr){const o=fr.f||fr.n;SX9.warm();for(let i=0;i<8;i++)parts.push({x:o.x,y:o.y-30,vx:(fx()-.5)*50,vy:-30-fx()*40,l:1.8,ml:1.8,c:'240,150,170',s:3});if(fr.f)fr.f.joy=1.5;G.giftBubble={id:fr.id,t:3,txt:['Oh! For me? Thank you! 💞','I love it! You\'re the best 💛','How thoughtful... thank you! 🌸'][fx()*3|0]};emote('♥',1)}
+// bloom potion / seed bomb: wildflowers sprout (and garden beds nearby grow)
+function sprout(cx,cy,n,rad){const R=mulberry((cx*7+cy)|0);let k=0;for(let i=0;i<n*3&&k<n;i++){const a=R()*TAU,r=Math.sqrt(R())*rad,px=cx+Math.cos(a)*r,py=cy+Math.sin(a)*r;if(inWater(px,py,10))continue;SV.d.blooms.push({x:Math.round(px),y:Math.round(py),k:R()<.6?'flower':'wildflowers',v:R()*8|0,t:SV.d.playT+k*.25});k++}
+ if(SV.d.blooms.length>300)SV.d.blooms.splice(0,SV.d.blooms.length-300);SV.save();syncBuilds()}
+function pourBloom(){SX9.pour();emote('💧');const P=G.P;let grew=0;for(const b of SV.d.builds)if(b.k=='bed'&&dist(b.x,b.y,P.x,P.y)<220){(b.plots||[]).forEach(p=>{if(p)p.p-=90});grew=1}sprout(P.x,P.y,grew?4:9,140);setTimeout(()=>toast(grew?'🌱 The garden perks up!':'🌼 Flowers bloom around you',1800),600)}
+function seedBomb(){const P=G.P,fd=P.fd||1;SX9.plant();const tx=P.x+fd*120,ty=P.y+30;puff(tx,ty,8,'150,120,80',40,.8,3,20);setTimeout(()=>{sprout(tx,ty,10,110);SX9.pop();toast('🌸 Wildflowers!',1400)},500)}
+// ----- Paint -----
+const BASECOL=[['none','Natural',null],['oat','Oat','#d8c8a8'],['clay','Clay','#c09070']];
+let PAINT={on:false,col:null,pat:'none'};
+function palette(){return[...BASECOL,...SV.d.dyes.map(k=>[k,ITEMS9[k].n.replace(' Dye',''),ITEMS9[k].col])]}
+function renderPaint(B){const sw=palette().map(([k,n,c])=>`<span class="swatch ${PAINT.col==c?'on':''}" data-c="${c||''}" title="${n}" style="background:${c||'repeating-linear-gradient(45deg,#e8dcc0,#e8dcc0 4px,#cfc0a0 4px,#cfc0a0 8px)'}"></span>`).join('');
+ B.innerHTML=`<p class="small">Make dyes in the bowl to unlock more colours (${SV.d.dyes.length}/7).</p><div>${sw}</div>
+ <div style="margin:8px">Pattern: ${['none','dots','stripes','hearts'].map(p=>`<button class="b ${PAINT.pat==p?'':'n'}" data-p="${p}" style="font-size:13px;padding:5px 9px">${{none:'Plain',dots:'• Dots',stripes:'≡ Stripes',hearts:'♥ Hearts'}[p]}</button>`).join(' ')}</div>
+ <div style="margin:8px"><button class="b" id="pBuild">🖌️ Paint my builds</button></div>
+ <div style="margin-top:6px"><b>Lottie</b>: <button class="b n" data-l="hatband">🎩 Hat ribbon</button> <button class="b n" data-l="scarfc">🧣 Scarf</button> <button class="b n" data-l="pack">🎒 Backpack</button></div><canvas id="lotPrev" width="200" height="200" style="width:120px;height:120px;margin-top:6px"></canvas>`;
+ B.querySelectorAll('.swatch').forEach(s=>s.onclick=()=>{PAINT.col=s.dataset.c||null;SX9.brush();renderMake()});B.querySelectorAll('[data-p]').forEach(b=>b.onclick=()=>{PAINT.pat=b.dataset.p;S.pop();renderMake()});
+ B.querySelectorAll('[data-l]').forEach(b=>b.onclick=()=>{const k=b.dataset.l;SV.d.look[k]=PAINT.col;if(k=='scarfc'&&PAINT.col)SV.d.look.scarf=1;SV.save();SX9.brush();renderMake()});
+ $('pBuild').onclick=()=>{closeMake();PAINT.on=true;pDone.style.display='block';tut('paint','Tap a build to paint it')};
+ const c=$('lotPrev'),g=c.getContext('2d'),im=IMG.lottie_l;if(im){const h=170,w=im.width*h/im.height;g.save();g.translate(100,190);g.scale(-1,1);g.drawImage(im,-w/2,-h,w,h);lookDeco(g,w,h,-1);g.restore()}}
+const pDone=document.createElement('button');pDone.className='b';pDone.textContent='✓ Done painting';pDone.style.cssText='position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:22;display:none;opacity:.85';document.body.appendChild(pDone);pDone.onclick=()=>{PAINT.on=false;pDone.style.display='none';S.pop()};
+addEventListener('pointerdown',e=>{if(!PAINT.on||e.target!==cv||state!='play')return;e.stopImmediatePropagation();const wx=(e.clientX-W/2)/zoom+cam.x,wy=(e.clientY-H/2)/zoom+cam.y;let best=null,bd=70;for(const b of SV.d.builds){const dd=dist(b.x,b.y-(BK[b.k]&&BK[b.k].flat?0:25),wx,wy);if(dd<bd){bd=dd;best=b}}
+ if(best){best.col=PAINT.col;best.pat=PAINT.pat;SV.save();SX9.brush();puff(best.x,best.y-20,4,'240,230,210',20,.8,2.5,10)}},true);
+// tinted / patterned build sprites (cached)
+const TINT={};function tinted(k,col,pat){const key=k+col+pat;if(TINT[key])return TINT[key];const sp=BSPR[k],c=document.createElement('canvas');c.width=sp.img.width;c.height=sp.img.height;const g=c.getContext('2d');g.drawImage(sp.img,0,0);g.globalCompositeOperation='source-atop';
+ if(col){g.globalAlpha=.55;g.fillStyle=col;g.fillRect(0,0,c.width,c.height);g.globalAlpha=1}
+ if(pat&&pat!='none'){g.fillStyle='rgba(255,250,240,.55)';g.strokeStyle='rgba(255,250,240,.5)';g.lineWidth=5;if(pat=='dots')for(let y=8;y<c.height;y+=22)for(let x=(y/22%2)*11+6;x<c.width;x+=22){g.beginPath();g.arc(x,y,4,0,TAU);g.fill()}
+  else if(pat=='stripes')for(let x=-c.height;x<c.width;x+=22){g.beginPath();g.moveTo(x,0);g.lineTo(x+c.height,c.height);g.stroke()}else{g.font='16px serif';for(let y=14;y<c.height;y+=26)for(let x=(y/26%2)*13+6;x<c.width;x+=26)g.fillText('♥',x,y)}}
+ return TINT[key]={img:c,w:sp.w,h:sp.h}}
+// ----- Leaf canvas (free draw) -----
+const ARTC={};function artImg(i){if(ARTC[i])return ARTC[i];const im=new Image();im.src=SV.d.art[i];return ARTC[i]=im}
+let drawCol='#6a5a3a',drawSz=8;
+function renderDraw(B){const cols=['#6a5a3a','#3a3a32','#8aa070','#c8a060','#e8dcc0','#ffffff',...SV.d.dyes.map(k=>ITEMS9[k].col)];
+ B.innerHTML=`<canvas id="leafC" width="480" height="340" style="width:min(86vw,360px);height:auto"></canvas><div>${cols.map(c=>`<span class="swatch ${c==drawCol?'on':''}" data-c="${c}" style="background:${c}"></span>`).join('')}</div>
+ <div style="margin:6px">Brush: ${[4,8,16,28].map(s=>`<button class="b ${s==drawSz?'':'n'}" data-s="${s}" style="font-size:13px;padding:4px 9px">${s<6?'·':s<10?'•':s<20?'●':'⬤'}</button>`).join(' ')} <button class="b n" id="dClr" style="font-size:13px;padding:4px 9px">Clear</button> <button class="b" id="dSave">💾 Keep painting</button></div>
+ <div id="artL" style="margin-top:6px"></div>`;
+ const c=$('leafC'),g=c.getContext('2d');leafBG(g,c.width,c.height);let last=null,down=false;
+ const pos=e=>{const r=c.getBoundingClientRect();return[(e.clientX-r.left)*c.width/r.width,(e.clientY-r.top)*c.height/r.height]};
+ const dab=(px,py)=>{g.save();leafClip(g,c.width,c.height);const gr=g.createRadialGradient(px,py,0,px,py,drawSz);gr.addColorStop(0,drawCol+'cc');gr.addColorStop(1,drawCol+'00');g.fillStyle=gr;g.beginPath();g.arc(px,py,drawSz,0,TAU);g.fill();g.restore()};
+ c.onpointerdown=e=>{down=true;c.setPointerCapture(e.pointerId);last=pos(e);dab(...last);SX9.brush()};c.onpointermove=e=>{if(!down)return;const p=pos(e),d=dist(p[0],p[1],last[0],last[1]),n=Math.max(1,d/(drawSz*.3)|0);for(let i=1;i<=n;i++)dab(lerp(last[0],p[0],i/n),lerp(last[1],p[1],i/n));if(fx()<.08)nburst(4500,.12,.012,.5);last=p};c.onpointerup=()=>down=false;
+ B.querySelectorAll('.swatch').forEach(s=>s.onclick=()=>{drawCol=s.dataset.c;B.querySelectorAll('.swatch').forEach(x=>x.classList.toggle('on',x==s))});B.querySelectorAll('[data-s]').forEach(b=>b.onclick=()=>{drawSz=+b.dataset.s;B.querySelectorAll('[data-s]').forEach(x=>x.className='b '+(x==b?'':'n'))});
+ $('dClr').onclick=()=>{leafBG(g,c.width,c.height);S.pop()};$('dSave').onclick=()=>{const s=document.createElement('canvas');s.width=240;s.height=170;s.getContext('2d').drawImage(c,0,0,240,170);SV.d.art.push(s.toDataURL('image/png'));if(SV.d.art.length>12)SV.d.art.shift();SV.save();SX9.warm();toast('🖼️ Painting kept!',1400);renderArtList()};renderArtList()}
+function leafClip(g,w,h){g.beginPath();g.moveTo(w*.04,h*.5);g.bezierCurveTo(w*.25,h*.02,w*.75,h*.02,w*.97,h*.5);g.bezierCurveTo(w*.75,h*.98,w*.25,h*.98,w*.04,h*.5);g.clip()}
+function leafBG(g,w,h){g.clearRect(0,0,w,h);g.save();leafClip(g,w,h);const gr=g.createLinearGradient(0,0,0,h);gr.addColorStop(0,'#cfd8a8');gr.addColorStop(1,'#a8b880');g.fillStyle=gr;g.fillRect(0,0,w,h);g.strokeStyle='rgba(250,255,230,.35)';g.lineWidth=3;g.beginPath();g.moveTo(w*.04,h*.5);g.lineTo(w*.97,h*.5);for(let i=1;i<6;i++){g.moveTo(w*i/6.5,h*.5);g.lineTo(w*i/6.5+w*.1,h*.2);g.moveTo(w*i/6.5,h*.5);g.lineTo(w*i/6.5+w*.1,h*.8)}g.stroke();g.restore()}
+function renderArtList(){const L=$('artL');if(!L)return;L.innerHTML=SV.d.art.length?'<div class="small">Your paintings — place one as a sign, or hang it in the nearest house:</div>':'';SV.d.art.forEach((u,i)=>{const d=document.createElement('div');d.style.cssText='display:inline-block;margin:4px;text-align:center';d.innerHTML=`<img src="${u}" style="width:96px;border-radius:8px;border:2px solid #b48a4a"><br><button class="b n" style="font-size:12px;padding:3px 7px" data-a="s">🪧 Sign</button><button class="b n" style="font-size:12px;padding:3px 7px" data-a="h">🏡 Hang</button>`;
+ d.querySelector('[data-a=s]').onclick=()=>{closeMake();BUILD.k='sign';BUILD.art=i;if(!BUILD.on)toggleBuild();else{renderPal();ghostAt(G.P.x+50,G.P.y+30)}};
+ d.querySelector('[data-a=h]').onclick=()=>{const P=G.P;let best=null,bd=320;for(const b of SV.d.builds)if(['cottage','hut','tent'].includes(b.k)){const dd=dist(b.x,b.y,P.x,P.y);if(dd<bd){bd=dd;best=b}}if(!best){toast('Stand near one of your houses',1600);return}best.art=i;SV.save();SX9.warm();toast('🖼️ Hung up with care',1400)};L.appendChild(d)})}
+// ---------- new placeables: signs, chimes, paper lanterns, swing, mosaics ----------
+(()=>{const mk=(w,h,fn)=>{const c=document.createElement('canvas');c.width=w*2;c.height=h*2;const g=c.getContext('2d');g.scale(2,2);g.translate(w/2,h);fn(g);return{img:c,w,h}};
+ BSPR.sign=mk(70,80,g=>{g.fillStyle='#7a5430';g.fillRect(-3,-40,6,40);g.fillStyle='#9a7448';g.fillRect(-32,-78,64,44);g.fillStyle='#cfd8a8';g.fillRect(-28,-74,56,36)});
+ BSPR.chime=mk(40,80,g=>{g.strokeStyle='#7a5430';g.lineWidth=3;g.beginPath();g.moveTo(0,0);g.lineTo(0,-70);g.lineTo(14,-70);g.stroke();g.strokeStyle='rgba(120,90,60,.7)';g.lineWidth=1;for(const[a,l]of[[8,18],[14,24],[20,16]]){g.beginPath();g.moveTo(a,-70);g.lineTo(a,-70+l);g.stroke();g.fillStyle='#f0e0cc';g.beginPath();g.ellipse(a,-70+l+4,3,5,0,0,TAU);g.fill()}});
+ BSPR.plantern=mk(36,70,g=>{g.strokeStyle='#7a5430';g.lineWidth=3;g.beginPath();g.moveTo(0,0);g.lineTo(0,-46);g.stroke();g.fillStyle='#e8c890';g.beginPath();g.ellipse(0,-54,11,14,0,0,TAU);g.fill();g.strokeStyle='#8aa050';g.lineWidth=2;for(const a of[-6,0,6]){g.beginPath();g.moveTo(a,-67);g.quadraticCurveTo(a*1.6,-54,a,-41);g.stroke()}});
+ BSPR.swing=mk(80,90,g=>{g.strokeStyle='#7a5430';g.lineWidth=5;g.lineCap='round';g.beginPath();g.moveTo(-34,0);g.lineTo(-30,-84);g.lineTo(30,-84);g.lineTo(34,0);g.stroke();g.strokeStyle='#c8b070';g.lineWidth=1.6;g.beginPath();g.moveTo(-12,-82);g.lineTo(-12,-24);g.moveTo(12,-82);g.lineTo(12,-24);g.stroke();g.fillStyle='#8a6a3a';g.fillRect(-16,-26,32,6)});
+ const tileS=(col)=>mk(16,16,g=>{g.translate(0,-8);g.fillStyle=col;g.beginPath();g.ellipse(0,0,7,5,0,0,TAU);g.fill();g.fillStyle='rgba(255,255,245,.35)';g.beginPath();g.ellipse(-2,-2,3,1.5,0,0,TAU);g.fill()});
+ BSPR.mpebble=tileS('#b0a898');BSPR.mpetal=tileS('#e0b0c0')})();
+Object.assign(BK,{sign:{n:'Painted Sign',e:'🪧',c:{twig:1},r:16,hidden:1},chime:{n:'Wind Chime',e:'🎐',c:{},inv:'chime',r:12,hidden:1},plantern:{n:'Paper Lantern',e:'🏮',c:{},inv:'plantern',r:12,hidden:1},swing:{n:'Rope Swing',e:'🪢',c:{},inv:'swing',r:30,seat:1,hidden:1},
+ mpebble:{n:'Pebble Mosaic',e:'⚪',c:{pebble:1},r:0,flat:1,quick:1,mos:1},mpetal:{n:'Petal Mosaic',e:'🌸',c:{petal:1},r:0,flat:1,quick:1,mos:1}});
+// palette hides inventory-only items unless you own them; mosaics snap to a soft 14px lattice
+const _rp9=renderPal;renderPal=function(){const hid=Object.keys(BK).filter(k=>BK[k].hidden&&!(BK[k].inv&&SV.d.inv[BK[k].inv]>0)&&!(k=='sign'&&BUILD.k=='sign'));const sv={};hid.forEach(k=>{sv[k]=BK[k];delete BK[k]});_rp9();Object.assign(BK,sv);
+ pal.querySelectorAll('[data-k]').forEach(d=>{const k=d.dataset.k;if(BK[k].inv){const n=SV.d.inv[BK[k].inv]||0;d.lastElementChild.textContent=`in bag: ${n}`;d.style.opacity=n?1:.45}})};
+const _ga9=ghostAt;ghostAt=function(wx,wy){if(BK[BUILD.k]&&BK[BUILD.k].mos){const near=SV.d.builds.some(b=>BK[b.k]&&BK[b.k].mos&&dist(b.x,b.y,wx,wy)<60);if(near){wx=Math.round(wx/14)*14;wy=Math.round(wy/14)*14}}_ga9(wx,wy);if(BUILD.g&&BK[BUILD.k].inv&&!(SV.d.inv[BK[BUILD.k].inv]>0))BUILD.g.ok=false;if(BUILD.g&&BK[BUILD.k].mos&&SV.d.builds.some(b=>BK[b.k].mos&&dist(b.x,b.y,BUILD.g.x,BUILD.g.y)<6))BUILD.g.ok=false};
+const _pl9=place;place=function(){const n0=SV.d.builds.length,k=BUILD.k;_pl9();if(SV.d.builds.length>n0){const b=SV.d.builds[SV.d.builds.length-1];if(BK[k].inv){SV.d.inv[BK[k].inv]--;renderPal()}if(k=='sign')b.art=BUILD.art|0;if(BK[k].mos){b.col=PAINT.col;b.r=0}if(k=='bed')b.plots=[null,null,null];SV.save()}};
+const _rm9=removeAt;removeAt=function(wx,wy){const before=SV.d.builds.slice();_rm9(wx,wy);const gone=before.find(b=>!SV.d.builds.includes(b));if(gone&&BK[gone.k].inv)SV.d.inv[BK[gone.k].inv]=(SV.d.inv[BK[gone.k].inv]||0)+1};
+// touch: mosaics place straight away on tap
+addEventListener('pointerdown',e=>{if(!BUILD.on||e.target!==cv||state!='play'||BUILD.rem||e.pointerType=='mouse'||!BK[BUILD.k].quick)return;e.stopImmediatePropagation();ghostAt((e.clientX-W/2)/zoom+cam.x,(e.clientY-H/2)/zoom+cam.y);place()},true);
+// blooms (persistent wildflowers) become decor
+const _sb9=syncBuilds;syncBuilds=function(){_sb9();if(!TALL)return;TALL=TALL.filter(d=>!d.bloom);for(const b of SV.d.blooms)TALL.push({k:b.k,v:b.v,x:b.x,y:b.y,s:.7,fl:b.v%2==0,bloom:b});TALL_G=bucket(TALL)};
+// ---------- gardening ----------
+const CROPS={flower:{n:'Flowers',e:'🌼',g:150,col:'#f0d070'},herb:{n:'Herbs',e:'🌱',g:180,col:'#7aa050'},berry:{n:'Berries',e:'🫐',g:220,col:'#4a5a9a'}};
+const stage=p=>p?clamp((SV.d.playT-p.p)/CROPS[p.s].g,0,1):0;
+function nearBed(){if(!G)return null;let best=null,bd=70;for(const b of SV.d.builds)if(b.k=='bed'){const d=dist(b.x,b.y,G.P.x,G.P.y);if(d<bd){bd=d;best=b}}return best}
+function plant(){const b=nearBed();if(!b)return;b.plots=b.plots||[null,null,null];const i=b.plots.findIndex(p=>!p);if(i<0)return;if(SV.d.mat.seed<=0){toast('No seeds — mix 🌼+🌼, or dig for some',1800);return}SV.d.mat.seed--;const s=['flower','herb','berry'][(SV.d.playT*7+i)%3|0];b.plots[i]={s,p:SV.d.playT};SV.save();SX9.plant();puff(b.x-30+i*30,b.y-10,4,'120,90,50',20,.6,2.5,6);tut('garden','Seeds grow slowly while you play')}
+function harvest(){const b=nearBed();if(!b||!b.plots)return;let got=[];b.plots.forEach((p,i)=>{if(p&&stage(p)>=1){const m=p.s;SV.d.mat[m]=(SV.d.mat[m]||0)+2;if(fx()<.5)SV.d.mat.seed++;got.push(CROPS[m].e);b.plots[i]=null;floatTxt(b.x-30+i*30,b.y-40,'+2 '+CROPS[m].e)}});if(got.length){SV.save();SX9.plant();SX9.pop();toast('🧺 Harvested '+got.join(' '),1600)}}
+const bPlant=mkB('aPlant','🌱 Plant',plant),bHarv=mkB('aHarv','🧺 Harvest',harvest);
+// draw beds with crops, painted builds, signs with paintings, house pictures, gifts on friends
+const _dd9=drawDecor;drawDecor=function(d,t){if(!d.build)return _dd9(d,t);const b=d.build,sp0=BSPR[b.k];if(!sp0)return;const sp=(b.col||(b.pat&&b.pat!='none'))?tinted(b.k,b.col,b.pat):sp0;
+ shadowE(x,b.x,b.y+2,sp.w*.4,sp.w*.11,.35);x.save();x.translate(b.x,b.y);const sq=b.k=='fence'||b.k=='bench'||b.k=='bed';if(BK[b.k].rot&&!sq)x.rotate(b.r*.12);if(sq){const c=Math.cos(b.r);x.scale(Math.max(.35,Math.abs(c)),1);if(c<0)x.scale(-1,1)}
+ if(b.k=='swing'){x.drawImage(sp.img,-sp.w/2,-sp.h,sp.w,sp.h)}else if(b.k=='chime'){x.rotate(Math.sin(t/900+b.x)*.03);x.drawImage(sp.img,-sp.w/2,-sp.h,sp.w,sp.h)}else x.drawImage(sp.img,-sp.w/2,-sp.h,sp.w,sp.h);
+ if(b.k=='sign'&&SV.d.art[b.art]){const im=artImg(b.art);if(im.complete)x.drawImage(im,-28,-74,56,36)}
+ if(b.art!=null&&['cottage','hut','tent'].includes(b.k)&&SV.d.art[b.art]){const im=artImg(b.art);if(im.complete){x.fillStyle='#7a5430';x.fillRect(14,-40,26,20);x.drawImage(im,16,-38,22,16)}}
+ if(b.k=='bed'&&b.plots)b.plots.forEach((p,i)=>{if(!p)return;const s=stage(p),px=-28+i*28,py=-16,c=CROPS[p.s];x.save();x.translate(px,py);const sw=Math.sin(t/1100+i)*.05;x.rotate(sw);x.strokeStyle='#5a8a3a';x.lineWidth=2;x.lineCap='round';const h=4+s*20;x.beginPath();x.moveTo(0,0);x.lineTo(0,-h);x.stroke();
+  x.fillStyle='#6a9a3a';for(const sd of[-1,1]){x.beginPath();x.ellipse(sd*4,-h*.45,3+s*2,1.6+s,sd*.5,0,TAU);x.fill()}if(s>.6){x.fillStyle=c.col;const r=1.5+(s-.6)*9;if(p.s=='berry')for(const[a,bb]of[[-3,0],[3,1],[0,-3]]){x.beginPath();x.arc(a,-h+bb,r*.55,0,TAU);x.fill()}else{for(let k=0;k<5;k++){x.beginPath();x.ellipse(Math.cos(k*1.26)*r*.7,-h+Math.sin(k*1.26)*r*.7,r*.5,r*.35,k,0,TAU);x.fill()}x.fillStyle='#c08030';x.beginPath();x.arc(0,-h,r*.3,0,TAU);x.fill()}}
+  if(s>=1&&Math.sin(t/500+i)>.9){x.fillStyle='rgba(255,250,220,.7)';x.beginPath();x.arc(5,-h-6,1.6,0,TAU);x.fill()}x.restore()});
+ x.restore()};
+// mosaics: tinted tiles in the ground pass
+const _gp9=groundPass;groundPass=function(x0,y0,x1,y1){_gp9(x0,y0,x1,y1);for(const b of SV.d.builds){if(!BK[b.k]||!BK[b.k].mos||b.x<x0-20||b.x>x1+20||b.y<y0-20||b.y>y1+20)continue;x.fillStyle='rgba(40,30,15,.25)';x.beginPath();x.ellipse(b.x+1,b.y+1.5,7,5,0,0,TAU);x.fill();x.fillStyle=b.col||(b.k=='mpetal'?'#e0b0c0':'#b0a898');x.beginPath();x.ellipse(b.x,b.y,7,5,(b.x*.1)%3,0,TAU);x.fill();x.fillStyle='rgba(255,255,245,.3)';x.beginPath();x.ellipse(b.x-2,b.y-2,3,1.5,0,0,TAU);x.fill()}};
+// Lottie look: hat ribbon, scarf, backpack patch (drawn over the painted sprite)
+function lookDeco(g,w,h,dir){const L=SV.d.look;g.save();if(L.hatband){g.fillStyle=L.hatband;g.globalAlpha=.85;g.beginPath();g.ellipse(w*.06,-h*.80,w*.24,h*.035,-.12,0,TAU);g.fill()}
+ if(L.scarf){g.globalAlpha=.9;g.fillStyle=L.scarfc||'#c86a4a';g.beginPath();g.ellipse(w*.14,-h*.56,w*.17,h*.05,.3,0,TAU);g.fill();g.beginPath();g.moveTo(w*.08,-h*.55);g.quadraticCurveTo(-w*.02,-h*.42,w*.02,-h*.36);g.lineTo(w*.08,-h*.38);g.quadraticCurveTo(w*.06,-h*.46,w*.14,-h*.54);g.fill()}
+ if(L.pack){g.globalAlpha=.5;g.globalCompositeOperation='multiply';g.fillStyle=L.pack;g.beginPath();g.ellipse(-w*.26,-h*.48,w*.16,h*.17,0,0,TAU);g.fill()}g.restore()}
+const _dp9=drawPlayer;drawPlayer=function(P,t){_dp9(P,t);if(!G||!IMG.lottie_l)return;const L=SV.d.look;if(!L.hatband&&!L.scarf&&!L.pack)return;if(P.lastK&&P.lastK.k!='lottie_l')return;
+ const im=IMG.lottie_l,h=106,w=im.width*h/im.height,flip=P.lastK?P.lastK.flip:false,hop=P.hop>0?Math.sin(Math.PI*(1-P.hop))*16:0,alt=P.alt||0;x.save();x.translate(P.x,P.y-hop-alt);if(alt>1)x.scale(1+P.flyK*.12,1+P.flyK*.12);x.scale(flip?-1:1,1);lookDeco(x,w,h);x.restore()};
+// gifts shown on friends + thank-you bubble
+const _dc9=drawCritter;drawCritter=function(id,px,py,h,t,vx,alt=0,joy=0){_dc9(id,px,py,h,t,vx,alt,joy);const fid=id=='butterfly'?'caterpillar':id,gk=SV.d.fgift[fid];if(!gk||!ITEMS9[gk])return;x.save();x.font=`${Math.round(h*.45)}px serif`;x.textAlign='center';const w=ITEMS9[gk].wear;x.fillText(ITEMS9[gk].e,px+(w?0:h*.45),py-alt-(w?h*.95:h*.25));x.restore()};
+const _mm9=drawMinimap;drawMinimap=function(){if(G&&G.giftBubble&&state=='play'){const gb=G.giftBubble,f=(G.fr||[]).find(f=>f.id==gb.id)||((G.npc||[]).find(n=>n.f.id==gb.id));if(f&&gb.t>0){x.save();x.setTransform(DPR*zoom,0,0,DPR*zoom,DPR*(W/2-cam.x*zoom),DPR*(H/2-cam.y*zoom));bubble(f.x,f.y-(f.alt||0)-60,gb.txt,Math.min(1,gb.t));x.restore()}}_mm9()};
+// ---------- per frame ----------
+let ab9=0;const _upd9=update;update=function(dt){_upd9(dt);if(!G||state!='play')return;SV.d.playT+=dt;if(G.giftBubble)G.giftBubble.t-=dt;const P=G.P;
+ if(P.cozy>0){P.cozy-=dt;if(fx()<dt*1.5)parts.push({x:P.x+(fx()-.5)*20,y:P.y-90,vx:(fx()-.5)*8,vy:-14,l:1.6,ml:1.6,c:'255,250,240',s:3})}
+ // wind chimes ring softly in gusts
+ for(const b of SV.d.builds)if(b.k=='chime'&&dist(b.x,b.y,P.x,P.y)<420&&fx()<dt*.35){const i=(b.x+b.y+(performance.now()/1000|0))%PENTA.length|0;SX.crystal(i+2)}
+ ab9-=dt;if(ab9<=0){ab9=.2;const b=nearBed(),on=!!b&&!BUILD.on&&!P.fly&&!P.boat;const free=on&&b.plots&&b.plots.some(p=>!p),ripe=on&&b.plots&&b.plots.some(p=>p&&stage(p)>=1);show(bPlant,free);show(bHarv,ripe);
+  if(SV.d.recipes.length==0&&G.el>40)tut('make','🧶 Tap Make to mix things in the bowl')}
+ if(SV.d.playT%10<dt)SV.save()};
+syncBuilds();
+window.__v9={openMake,closeMake,addBowl,grind,finishMix,plant,harvest,wear,sprout,giftFx,nearFriend,PAINT,tinted,renderMake,get mkTab(){return mkTab},set mkTab(v){mkTab=v}};
