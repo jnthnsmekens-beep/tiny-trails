@@ -41,7 +41,7 @@ o.focus=()=>{if(!A)return;tone(1200,A.currentTime,.012,.05,'square')};
 o.warn=()=>{if(!A)return;let t=A.currentTime;for(let i=0;i<5;i++)burst(t+i*.12,.06,.09,'lowpass',500)};
 o.splash=()=>{if(!A)return;let t=A.currentTime;burst(t,.08,.15,'bandpass',1200,.8);tone(700,t,.03,.08)};
 o.hit=()=>{if(!A)return;let t=A.currentTime,os=A.createOscillator(),g=A.createGain(),f=A.createBiquadFilter();f.type='lowpass';f.frequency.value=380;os.type='triangle';os.frequency.setValueAtTime(190,t);os.frequency.exponentialRampToValueAtTime(65,t+.4);env(g,t,.01,.3,.45);os.connect(f).connect(g).connect(M);os.start(t);os.stop(t+.6);burst(t,.08,.2,'lowpass',300)};
-o.ctx=()=>A;o.toggle=()=>{muted=!muted;if(M)M.gain.setTargetAtTime(muted?0:.55,A.currentTime,.05);return muted};return o})();
+o.ctx=()=>A;o.out=()=>M;o.toggle=()=>{muted=!muted;if(M)M.gain.setTargetAtTime(muted?0:.55,A.currentTime,.05);return muted};return o})();
 // ===== Species =====
 const RAR={common:{c:'#3d7a1e',fl:115,al:1,fo:.65,dew:2,e:'🟩',lbl:'Common'},rare:{c:'#3a6fb0',fl:145,al:1.5,fo:.95,dew:5,e:'🟦',lbl:'Rare'},legendary:{c:'#c08a10',fl:175,al:2.1,fo:1.3,dew:12,e:'🟨',lbl:'Legendary'}};
 const SPEC=[
@@ -757,3 +757,231 @@ const _mm5=drawMinimap;drawMinimap=function(){if(G){const t=performance.now();x.
  const dusk=Math.max(sm(.15,.5,N)*(1-sm(.85,1,N)*.3),N*.7);if(dusk>.02){x.globalCompositeOperation='lighter';for(const m of DUSK){let px=((m.x*W+Math.sin(t/3000+m.p)*60)%W+W)%W,py=((m.y*H+Math.cos(t/3700+m.p)*40-t/160*m.s)%H+H)%H,a=dusk*(.4+.6*Math.max(0,Math.sin(t/600+m.p*3)));let g=x.createRadialGradient(px,py,0,px,py,10*m.s);g.addColorStop(0,`rgba(255,240,150,${a*.7})`);g.addColorStop(1,'rgba(255,220,120,0)');x.fillStyle=g;x.fillRect(px-10*m.s,py-10*m.s,20*m.s,20*m.s)}}
  x.restore()}_mm5()};
 const _di5=drawItem;drawItem=function(o,t){_di5(o,t);if(o.got||o.it.r=='common'||(o.it.hid&&o.rv<1)||(o.it.night&&N<.45))return;let k=(t/700+o.t)%1;x.save();x.globalCompositeOperation='lighter';for(let i=0;i<3;i++){let a=(k+i/3)%1,px=o.x+Math.cos(o.t+i*2.1+t/900)*16,py=o.y-14-a*26;x.fillStyle=o.it.r=='legendary'?`rgba(255,220,120,${(1-a)*.9})`:`rgba(200,230,255,${(1-a)*.8})`;x.beginPath();x.arc(px,py,1.8*(1-a)+.6,0,TAU);x.fill()}x.restore()};
+// =====================================================================
+// v6: surface footsteps, interactive world, friends, grounded lighting
+// =====================================================================
+let Q=+(new URLSearchParams(location.search).get('q')??2),QAUTO=!new URLSearchParams(location.search).has('q');
+// ---------- sample buffers (Web Audio; on iOS M is routed through <audio>, so it plays through the silent switch) ----------
+const SURF={moss:3,sand:3,leaves:3,stone:3,cave:3,water:3};
+const SFXN=[...Object.keys(SURF).flatMap(k=>[1,2,3].map(i=>k+i)),'squish','rustle','bush','stoneroll'];
+const BUF={};let bufLoading=false;
+function loadBufs(){const A=S.ctx&&S.ctx();if(!A||bufLoading)return;bufLoading=true;
+ for(const n of SFXN){const xh=new XMLHttpRequest();xh.open('GET','assets/sfx/'+n+'.mp3');xh.responseType='arraybuffer';xh.onload=()=>{if(xh.status&&xh.status!=200)return;try{const p=A.decodeAudioData(xh.response,b=>BUF[n]=b,()=>{});if(p&&p.catch)p.catch(()=>{})}catch(e){}};xh.onerror=()=>{};xh.send()}}
+function aOK(){const A=S.ctx&&S.ctx();return A&&A.state=='running'&&S.out()}
+function playB(n,v=1,rate=1,pan=0){if(!aOK())return;loadBufs();const b=BUF[n];if(!b)return;const A=S.ctx(),s=A.createBufferSource();s.buffer=b;s.playbackRate.value=rate;const g=A.createGain();g.gain.value=v*MU.vol.sfx;s.connect(g);
+ if(A.createStereoPanner){const p=A.createStereoPanner();p.pan.value=clamp(pan,-.9,.9);g.connect(p).connect(S.out())}else g.connect(S.out());s.start()}
+function syn(f,dur,v,type='sine',t0=0,f2){if(!aOK())return;const A=S.ctx(),t=A.currentTime+t0,o=A.createOscillator(),g=A.createGain();o.type=type;o.frequency.setValueAtTime(f,t);if(f2)o.frequency.exponentialRampToValueAtTime(f2,t+dur*.8);
+ g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(v*MU.vol.sfx,t+.006);g.gain.exponentialRampToValueAtTime(.0001,t+dur);o.connect(g).connect(S.out());o.start(t);o.stop(t+dur+.05)}
+const PENTA=[523.25,587.33,659.25,783.99,880,1046.5,1174.66,1318.5,1567.98,1760];
+const SX={
+ chime(i){const f=PENTA[i%PENTA.length];syn(f,1.3,.06);syn(f*2,.7,.018,'sine',.01);syn(f*3,.4,.008,'sine',.02)},
+ boing(){syn(300+fx()*60,.38,.09,'sine',0,150);syn(900,.12,.02,'triangle',0,500)},
+ crystal(i){const f=PENTA[i%PENTA.length];[[1,.07,2.2],[2.76,.025,1.2],[5.4,.012,.7],[2,.02,1.6]].forEach(([m,v,d])=>syn(f*m,d,v))},
+ plink(){const f=1500+fx()*600;syn(f,.3,.05,'sine',0,f*.7);syn(f*1.5,.18,.02,'sine',.04)},
+ knock(){syn(220,.12,.08,'triangle',0,150);syn(330,.08,.04,'triangle',.07,200)},
+ buzz(v=1,pan=0){if(!aOK())return;const A=S.ctx(),t=A.currentTime,g=A.createGain(),f=A.createBiquadFilter();f.type='bandpass';f.frequency.value=900;f.Q.value=1.2;g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(.05*v*MU.vol.sfx,t+.12);g.gain.linearRampToValueAtTime(0,t+.9);
+  let out=g;if(A.createStereoPanner){const p=A.createStereoPanner();p.pan.value=pan;g.connect(p);out=p}out.connect(S.out());f.connect(g);
+  for(const d of[0,6]){const o=A.createOscillator();o.type='sawtooth';o.frequency.setValueAtTime(180+d,t);o.frequency.linearRampToValueAtTime(200+d+fx()*30,t+.45);o.frequency.linearRampToValueAtTime(175+d,t+.9);o.connect(f);o.start(t);o.stop(t+.95)}},
+ chirp(v=1){for(let i=0;i<3;i++)syn(4300+fx()*200,.04,.03*v,'triangle',i*.07)},
+ click(v=1){syn(2400,.03,.03*v,'square',0,1800);syn(2000,.03,.02*v,'square',.08,1600)},
+ shimmer(v=1){[0,1,2,3].forEach(i=>syn(PENTA[5+i%5]*(1+fx()*.01),.6,.02*v,'sine',i*.06))},
+ happy(){[0,2,4].forEach((n,i)=>syn(PENTA[n+2],.35,.04,'triangle',i*.08))},
+ friend(){[0,2,4,7].forEach((n,i)=>{syn(PENTA[n],1.2,.06,'sine',i*.11);syn(PENTA[n]*2,.6,.015,'sine',i*.11)})}};
+MU.step=()=>{};S.step=()=>{};
+// ---------- surfaces & footsteps ----------
+const WATERS=()=>[{x:BIO.pond.x,y:BIO.pond.y,wr:BIO.pond.wr},{x:BIO.waterfall.x,y:BIO.waterfall.y+30,wr:BIO.waterfall.wr}];
+function surface(px,py){for(const w of WATERS())if(dist(px,py,w.x,w.y)<w.wr+28)return'water';const b=biomeAt(px,py);
+ for(const d of nearDecor(TALL_G,px-40,py-40,px+40,py+40,0))if((d.k=='pebble'||d.k=='crystalrock'||d.k=='pinecone')&&dist(d.x+(d.oxc||0),d.y,px,py)<26*d.s)return b=='cave'?'cave':'stone';
+ if(b=='cave')return'cave';if(b=='dunes')return'sand';if(b=='autumn'||b=='log'||b=='pine')return'leaves';
+ for(const d of nearDecor(FLAT_G,px-30,py-30,px+30,py+30,0))if(d.k=='leafd'&&dist(d.x,d.y,px,py)<24*d.s)return'leaves';
+ return nearTrail(px,py)<22?'sand':'moss'}
+const SVOL={moss:.95,sand:.8,leaves:.85,stone:.7,cave:.75,water:.8};
+function footstep(P){const sf=surface(P.x,P.y);P.surf=sf;const v=(P.sneak?.42:1)*SVOL[sf],i=1+(fx()*3|0);P._lr=-(P._lr||.12);
+ playB(sf+i,v,(sf=='sand'&&biomeAt(P.x,P.y)!='dunes'?1.15:1)*(.88+fx()*.26)*(P.sneak?1.06:1),P._lr);
+ const fx0=P.x+(P._lr>0?5:-5),fy=P.y+2;
+ if(sf=='sand')puff(fx0,fy,3,'225,200,150',22,.6,2.4,6);else if(sf=='leaves')puff(fx0,fy,2,fx()<.5?'200,110,40':'150,90,40',26,.6,2.2,10);
+ else if(sf=='water'){RIP.push({x:fx0,y:fy,t:0,m:.9,r:18});puff(fx0,fy,4,'210,240,255',40,.35,2,30)}else if(sf=='cave')puff(fx0,fy,1,'190,200,230',14,.6,2,4)}
+// ---------- ripples / world fx ----------
+const RIP=[];
+// ---------- emotes ----------
+function emote(k,hop=0){const P=G&&G.P;if(!P)return;P.emo={k,t:1.6};if(hop){P.hop=1;SX.happy()}}
+// ---------- interactions ----------
+const REACT={flower:'flower',wildflowers:'flower',mush:'mush',blueshroom:'mush',cactus:'mush',clover:'leaf',bigclover:'leaf',grass:'leaf',fern:'leaf',dunegrass:'leaf',reed:'leaf',leafpile:'leaf',treeroot:'wood',birchstump:'wood',log:'wood',berrybush:'bush',pebble:'stone',pinecone:'stone',crystalrock:'crystal',seashell:'shell'};
+const decorIdx=d=>((d.x*.37+d.y*.11)|0)%PENTA.length;
+function revealUnder(d){let n=0;for(const o of G.items)if(o.it.hid&&o.rv<1&&!o.got&&dist(o.x,o.y,d.x,d.y)<40){o.rv=1;n++;sparkle(o.x,o.y-10,22,'200,225,255')}if(n){SX.shimmer(1.4);toast('✨ Something sparkles under the stone!');emote('!',1)}}
+function spawnItem(id,px,py){const it=ITEMI[id];if(!it)return;G.items.push({it,x:px,y:py,t:0,got:false,ft:0,rv:1});sparkle(px,py-8,10,'255,240,190')}
+function react(d,strong){const kind=REACT[d.k];if(!kind)return false;const now=performance.now();if((d.cd||0)>now)return false;d.cd=now+(strong?220:1500);d.rt0=now;d.rk=kind;
+ const pan=clamp((d.x-cam.x)*zoom/(W/2),-1,1)*.6,v=strong?1:.6,top=d.y-26*d.s;
+ if(kind=='flower'){puff(d.x,top-8,strong?16:8,fx()<.5?'255,226,110':'255,245,190',55,1.5,2.4,26);SX.chime(decorIdx(d)+(fx()*3|0))}
+ else if(kind=='mush'){playB('squish',.9*v,.95+fx()*.3,pan);SX.boing();puff(d.x,top-16,strong?16:8,d.k=='blueshroom'?'150,220,255':d.k=='cactus'?'200,230,150':'235,225,200',38,1.6,3,16)}
+ else if(kind=='leaf'){playB('rustle',.75*v,.85+fx()*.45,pan);puff(d.x,top,strong?6:3,d.k=='leafpile'?'210,110,40':'120,170,60',40,.9,2.6,12)}
+ else if(kind=='wood'){SX.knock();puff(d.x,d.y-10,5,'140,100,60',30,.8,2.2,6)}
+ else if(kind=='bush'){playB('bush',.9*v,.95+fx()*.2,pan);puff(d.x,top,10,'110,160,60',50,.9,2.6,14);
+  if(strong&&!d.drop&&G){d.drop=1;if(fx()<.75){const bk=biomeAt(d.x,d.y),cand=ITEMS.filter(i=>i.c=='berry'&&i.b.includes(bk)),it=(cand.length?cand:ITEMS.filter(i=>i.c=='berry'&&i.r=='common'))[fx()*(cand.length||2)|0];spawnItem(it.id,d.x+(fx()-.5)*50,d.y+26);toast('🫐 The bush dropped a berry!');emote('♥',1)}}}
+ else if(kind=='stone'){playB('stoneroll',.8*v,1.05+fx()*.35,pan);if(!d.rolled){d.rolled=1;d.ox=(fx()<.5?-1:1)*(20+fx()*12);puff(d.x,d.y,6,'150,130,100',30,.7,2.5,4);if(G)revealUnder(d)}}
+ else if(kind=='crystal'){const i=decorIdx(d)+(strong?0:2);SX.crystal(i);sparkle(d.x,top-30,10,'190,220,255');RIP.push({x:d.x,y:d.y-30*d.s,t:0,m:.8,r:50,c:'180,215,255',up:1})}
+ else if(kind=='shell'){SX.plink();sparkle(d.x,d.y-6,6,'255,230,220')}
+ return true}
+// tap anything
+cv.addEventListener('pointerdown',e=>{if(state!='play'||!G)return;const P=G.P,wx=(e.clientX-W/2)/zoom+cam.x,wy=(e.clientY-H/2)/zoom+cam.y;if(dist(wx,wy,P.x,P.y)>420)return;
+ for(const f of G.fr||[])if(dist(wx,wy,f.x,f.y-f.alt-12)<34){friendSound(f,1.2);f.joy=1;puff(f.x,f.y-f.alt-20,6,'255,170,190',30,1,3,30);emote('♥',1);return}
+ for(const b of G.bugs)if(b.vis>.5&&!b.gone&&dist(wx,wy,b.x,b.y-b.alt)<44){bugSound(b,1.2);if(b.s.id=='firefly')swirl(b.x,b.y-b.alt);emote('?');return}
+ let best=null,bd=70;for(const d of nearDecor(TALL_G,wx-90,wy-90,wx+90,wy+90,0)){if(!REACT[d.k])continue;let dd=dist(wx,wy,d.x,d.y-18*d.s);if(dd<bd){bd=dd;best=d}}
+ if(best){react(best,true);if(dist(best.x,best.y,P.x,P.y)>60)emote('?');return}
+ for(const w of WATERS())if(dist(wx,wy,w.x,w.y)<w.wr){RIP.push({x:wx,y:wy,t:0,m:1.4,r:40},{x:wx,y:wy,t:-.25,m:1.4,r:28});playB('water'+(1+(fx()*3|0)),.6,.8+fx()*.3);puff(wx,wy,6,'220,245,255',50,.4,2,40);return}
+ for(const d of G.dews)if(!d.got&&dist(wx,wy,d.x,d.y)<30){SX.plink();sparkle(d.x,d.y,5,'200,235,255');return}});
+function swirl(px,py){SX.shimmer(1.3);for(let i=0;i<18;i++){let a=i/18*TAU;parts.push({x:px+Math.cos(a)*20,y:py+Math.sin(a)*20,vx:-Math.sin(a)*90,vy:Math.cos(a)*90-20,l:1.4,ml:1.4,c:'220,255,140',s:2.4,star:1})}}
+function bugSound(b,v=1){const id=b.s.id,pan=clamp((b.x-G.P.x)/300,-.8,.8);if(['honeybee','bumblebee','dragonfly'].includes(id))SX.buzz(v,pan);else if(['cricket','grasshopper','mantis'].includes(id))SX.chirp(v);else if(['firefly','luna','butterfly'].includes(id))SX.shimmer(v*.7);else SX.click(v)}
+// ---------- friends ----------
+SV.d.friends=SV.d.friends||[];SV.d.bfly=SV.d.bfly||0;SV.d.catProg=SV.d.catProg||0;
+const cnt=c=>(G&&G.cnt&&G.cnt[c])||0;
+const FRIENDS=[
+ {id:'snail',n:'Shelly the Snail',home:'waterfall',h:40,task:'Could you bring me a berry? 🍓',tl:'Bring a berry',ok:()=>cnt('berry')>=1,help:'Sniffs out hidden gems nearby 💎'},
+ {id:'bumblebee',n:'Bumble the Bee',home:'flowers',h:40,fly:1,task:'Please find 3 herbs for my garden! 🌿',tl:'Find 3 herbs',ok:()=>cnt('herb')>=3,help:'Points you to berries, herbs & mushrooms 🌼'},
+ {id:'caterpillar',n:'Pip the Caterpillar',home:'autumn',h:34,task:'Tell me about the world! Visit 4 places 🗺️',tl:'Visit 4 places',ok:()=>G.visited.size>=4,help:'Will grow into a butterfly that points to bugs 🦋'},
+ {id:'firefly',n:'Glimmer the Firefly',home:'woods',h:34,fly:1,task:'I only wake up at night... come back after dusk 🌙',tl:'Visit at night',ok:()=>N>.55,help:'Lights up the night around you ✨'},
+ {id:'stag',n:'Digby the Beetle',home:'log',h:44,task:'I\'m hungry! Find me 2 mushrooms 🍄',tl:'Find 2 mushrooms',ok:()=>cnt('mush')>=2,help:'Digs up dewdrops & treasures ⛏️'}];
+const FRI={};FRIENDS.forEach(f=>FRI[f.id]=f);
+const friendSpr=id=>id=='caterpillar'&&SV.d.bfly?'butterfly':id;
+function friendSound(f,v=.6){const id=friendSpr(f.id);if(id=='bumblebee')SX.buzz(v*.8);else if(id=='firefly'||id=='butterfly')SX.shimmer(v);else if(id=='snail')playB('squish',.35*v,1.6);else if(id=='stag')SX.click(v);else SX.chirp(v*.7)}
+function mkFollower(id,px,py){return{id,x:px,y:py,alt:0,vx:0,t:fx()*9,joy:0,snd:performance.now()+4000+fx()*8000}}
+const _collect6=collect;collect=function(o){_collect6(o);G.cnt=G.cnt||{};G.cnt[o.it.c]=(G.cnt[o.it.c]||0)+1;emote('♥',1);
+ if(SV.d.friends.includes('caterpillar')&&!SV.d.bfly){SV.d.catProg++;if(SV.d.catProg>=6){SV.d.bfly=1;const f=(G.fr||[]).find(f=>f.id=='caterpillar');if(f){sparkle(f.x,f.y-20,40,'230,200,255');}SX.friend();banner('🦋 Pip became a butterfly!','Now Pip points you to undiscovered bugs');}SV.save()}};
+const _snap6=snap;snap=function(b){_snap6(b);emote('!',1)};
+const _newGame6=newGame;newGame=function(d){_newGame6(d);const r=mulberry(G.seed+11);G.cnt={};G.hist=[];G.npc=[];G.fr=[];G.dig=25;
+ for(const f of FRIENDS){const b=BIO[f.home];let hx,hy;for(let k=0;k<40;k++){let a=r()*TAU,rr=b.r*(.25+r()*.35);hx=b.x+Math.cos(a)*rr;hy=b.y+Math.sin(a)*rr;if(!inWater(hx,hy,60))break}
+  if(SV.d.friends.includes(f.id))G.fr.push(mkFollower(f.id,G.P.x-30,G.P.y+20));else G.npc.push({f,x:hx,y:hy,t:r()*9,shown:0})}};
+function befriend(n){const f=n.f;SV.d.friends.push(f.id);SV.save();G.npc=G.npc.filter(o=>o!=n);G.fr.push(mkFollower(f.id,n.x,n.y));SX.friend();sparkle(n.x,n.y-20,40,'255,190,210');
+ for(let i=0;i<10;i++)parts.push({x:n.x,y:n.y-30,vx:(fx()-.5)*60,vy:-40-fx()*60,l:1.8,ml:1.8,c:'255,120,150',s:3,heart:1});banner(`💞 ${f.n} is your friend!`,f.help);emote('♥',1)}
+// ---------- per-frame logic ----------
+let qT=0,qBad=0,lastFrame=0;
+const _upd6=update;update=function(dt){_upd6(dt);if(!G||state!='play')return;const P=G.P,now=performance.now();if(!bufLoading&&aOK())loadBufs();
+ // footsteps synced to walk cycle (feet touch ground when |sin(phase)|≈0)
+ if(P.speed>20){const ph=Math.floor(P.walk*2.2/Math.PI);if(ph!==P._ph){P._ph=ph;if(now-(P._st||0)>(P.sneak?300:170)){P._st=now;footstep(P)}}}
+ // bump reactions
+ if(P.speed>40)for(const d of nearDecor(TALL_G,P.x-60,P.y-60,P.x+60,P.y+60,0))if(REACT[d.k]&&dist(d.x+(d.oxc||0),d.y,P.x,P.y)<12+16*d.s)react(d,false);
+ // nearby bugs make little sounds; Lottie gets curious
+ for(const b of G.bugs){if(b.vis<.5||b.gone)continue;const dd=dist(b.x,b.y,P.x,P.y);if(dd<150&&(b._snd||0)<now){b._snd=now+3500+fx()*5000;bugSound(b,.5*(1-dd/170))}if(dd<170&&!b._cur&&!G.found.includes(b.s.id)){b._cur=1;emote('?')}}
+ // emotes
+ if(P.emo){P.emo.t-=dt;if(P.emo.t<=0)P.emo=null}if(P.hop>0)P.hop=Math.max(0,P.hop-dt*2.6);
+ // friend NPCs
+ for(const n of [...G.npc]){n.t+=dt;const dd=dist(n.x,n.y,P.x,P.y);n.near=dd<110;if(n.near){if(n.f.ok()){befriend(n);continue}if(!n.shown){n.shown=1;friendSound({id:n.f.id},.8)}}else n.shown=0}
+ // followers
+ const h=G.hist,last=h[h.length-1];if(!last||dist(last[0],last[1],P.x,P.y)>6){h.push([P.x,P.y]);if(h.length>200)h.shift()}
+ G.fr.forEach((f,i)=>{f.t+=dt;const tg=h[Math.max(0,h.length-1-(i+1)*8)]||[P.x,P.y];let fly=FRI[f.id].fly||(f.id=='caterpillar'&&SV.d.bfly);
+  const ox=fly?Math.sin(f.t*1.3+i)*18:0,oy=fly?Math.cos(f.t*1.7+i)*10:0,k=1-Math.exp(-dt*(f.id=='snail'&&!fly?2.2:3.5));const nx=lerp(f.x,tg[0]+ox,k);f.vx=(nx-f.x)/Math.max(dt,1e-3);f.x=nx;f.y=lerp(f.y,tg[1]+oy+8,k);
+  f.alt=fly?22+Math.sin(f.t*3)*5:0;f.joy=Math.max(0,f.joy-dt*1.5);if(now>f.snd&&dist(f.x,f.y,P.x,P.y)<200){f.snd=now+7000+fx()*9000;friendSound(f,.45)}});
+ // friend helpers
+ const has=id=>SV.d.friends.includes(id);
+ if(has('snail')&&fx()<dt*2)for(const o of G.items)if(o.it.hid&&o.rv<1&&!o.got&&dist(o.x,o.y,P.x,P.y)<280){o.rv=1;sparkle(o.x,o.y-10,24,'200,225,255');SX.shimmer(1);toast('🐌 Shelly sniffed out a hidden gem! 💎');break}
+ if(has('stag')){G.dig-=dt*(P.speed>20?1:.3);if(G.dig<=0){G.dig=35+fx()*20;const f=G.fr.find(f=>f.id=='stag')||P;puff(f.x,f.y,14,'120,90,50',50,.8,3,20);playB('rustle',.6,.7);
+   if(fx()<.3){const c=ITEMS.filter(i=>i.r=='common'&&!i.night);spawnItem(c[fx()*c.length|0].id,f.x+20,f.y+10);toast('🪲 Digby dug up a treasure!')}else{G.dew+=3;SV.d.dew+=3;S.dew();updHUD();toast('🪲 Digby dug up 3 dewdrops! 💧')}}}
+ G.pointI=null;G.pointB=null;
+ if(has('bumblebee')){let bd=900;for(const o of G.items){if(o.got||o.rv<1||o.it.c=='gem'||(o.it.night&&N<.45))continue;const dd=dist(o.x,o.y,P.x,P.y);if(dd<bd&&dd>70){bd=dd;G.pointI=o}}}
+ if(has('caterpillar')&&SV.d.bfly){let bd=1100;for(const b of G.bugs){if(b.gone||b.vis<.3||G.found.includes(b.s.id))continue;const dd=dist(b.x,b.y,P.x,P.y);if(dd<bd&&dd>90){bd=dd;G.pointB=b}}}
+ // ripples
+ for(let i=RIP.length-1;i>=0;i--){RIP[i].t+=dt;if(RIP[i].t>RIP[i].m)RIP.splice(i,1)}};
+// ---------- drawing: decor reactions + wind ----------
+const WINDY=new Set(['grass','reed','fern','dunegrass','clover','flower','wildflowers','bigclover']);
+const _dd6=drawDecor;drawDecor=function(d,t){let r=0;if(d.rt0){r=1-(performance.now()-d.rt0)/900;if(r<=0){r=0;d.rt0=0}}
+ if(d.ox!=null)d.oxc=lerp(d.oxc||0,d.ox,.12);
+ const wind=WINDY.has(d.k)?Math.pow(Math.max(0,Math.sin(t/2300-(d.x+d.y*.6)*.0022)),3)*.12*d.s:0;
+ if(!r&&!d.oxc&&!wind)return _dd6(d,t);
+ let sx=1,sy=1,sk=wind,rot=d.oxc?d.oxc/14:0;
+ if(r){const k=r*r;if(d.rk=='flower'||d.rk=='leaf')sk+=Math.sin(r*22)*.22*k;else if(d.rk=='mush'){sx=1+Math.sin(r*20)*.2*k;sy=1-Math.sin(r*20)*.2*k}else if(d.rk=='bush'){sk+=Math.sin(r*34)*.12*k;sx=1+Math.sin(r*25)*.05*k}else if(d.rk=='crystal'||d.rk=='wood'||d.rk=='shell'){sx=1+Math.sin(r*40)*.04*k;sy=sx}}
+ x.save();x.translate(d.x+(d.oxc||0),d.y);if(rot)x.rotate(rot*.15);x.transform(1,0,-sk,1,0,0);x.scale(sx,sy);x.translate(-d.x,-d.y);_dd6(d,t);x.restore()};
+// ---------- ground-level lighting pass: AO, long sun shadows, water caustics & ripples ----------
+const SHB=(()=>{const c=document.createElement('canvas');c.width=c.height=64;const g=c.getContext('2d'),gr=g.createRadialGradient(32,32,0,32,32,32);gr.addColorStop(0,'rgba(25,16,4,.6)');gr.addColorStop(.55,'rgba(25,16,4,.28)');gr.addColorStop(1,'rgba(25,16,4,0)');g.fillStyle=gr;g.fillRect(0,0,64,64);return c})();
+const seamless=(n,fn)=>{const c=document.createElement('canvas');c.width=c.height=n;const g=c.getContext('2d');const R=mulberry(n*7+3);for(let i=0;i<fn.count;i++){const a=fn.mk(R);for(const ox of[-n,0,n])for(const oy of[-n,0,n]){g.save();g.translate(ox,oy);fn.draw(g,a);g.restore()}}return c};
+const CAUS=seamless(256,{count:46,mk:R=>[R()*256,R()*256,R()*TAU,20+R()*40],draw:(g,[px,py,a,l])=>{g.strokeStyle='rgba(255,255,225,.55)';g.lineWidth=2.2;g.beginPath();g.moveTo(px,py);g.quadraticCurveTo(px+Math.cos(a)*l,py+Math.sin(a+1)*l,px+Math.cos(a+.6)*l*1.6,py+Math.sin(a+.6)*l*1.6);g.stroke()}});
+const DAPPLE=seamless(512,{count:60,mk:R=>[R()*512,R()*512,14+R()*46,R()],draw:(g,[px,py,r,k])=>{const gr=g.createRadialGradient(px,py,0,px,py,r);gr.addColorStop(0,`rgba(255,236,170,${.5+k*.4})`);gr.addColorStop(.6,`rgba(255,226,150,${.18+k*.15})`);gr.addColorStop(1,'rgba(255,220,140,0)');g.fillStyle=gr;g.beginPath();g.ellipse(px,py,r,r*.7,.6,0,TAU);g.fill()}});
+function sunInfo(){const ph=G?(G.el/300)%1:.2,u=clamp(ph/.47,0,1);return{a:Math.PI*.12+(u-.5)*1.5,len:1.1+Math.abs(u-.5)*3.2,al:(1-N)*(.55-.25*Math.abs(u-.5))}}
+const _nd6=nearDecor;nearDecor=function(g,x0,y0,x1,y1,m){const out=_nd6(g,x0,y0,x1,y1,m);if(g===FLAT_G&&m===120&&GROUND&&x.getTransform().a>0.1)groundPass(x0,y0,x1,y1);return out};
+function groundPass(x0,y0,x1,y1){const t=performance.now(),inV=(o,mm)=>o.x>x0-mm&&o.x<x1+mm&&o.y>y0-mm&&o.y<y1+mm;
+ // water: depth tint, caustics, sky reflection, ripples
+ for(const w of WATERS()){if(!inV(w,w.wr+40))continue;x.save();x.beginPath();x.arc(w.x,w.y,w.wr-6,0,TAU);x.clip();
+  let gd=x.createRadialGradient(w.x,w.y,w.wr*.2,w.x,w.y,w.wr);gd.addColorStop(0,'rgba(10,40,60,.32)');gd.addColorStop(1,'rgba(10,40,60,0)');x.fillStyle=gd;x.fillRect(w.x-w.wr,w.y-w.wr,w.wr*2,w.wr*2);
+  x.globalCompositeOperation='lighter';x.globalAlpha=(.10+.05*Math.sin(t/1300))*(1-N*.5);
+  for(const [sp,dx,dy] of[[1,t*.012,t*.007],[1.4,-t*.009,t*.011]]){const ts=256*sp,ox=((dx%ts)+ts)%ts,oy=((dy%ts)+ts)%ts;for(let px=w.x-w.wr-ox;px<w.x+w.wr;px+=ts)for(let py=w.y-w.wr-oy;py<w.y+w.wr;py+=ts)x.drawImage(CAUS,px,py,ts,ts)}
+  x.globalAlpha=1;let sk=x.createLinearGradient(w.x-w.wr,w.y-w.wr,w.x+w.wr*.3,w.y+w.wr*.4);sk.addColorStop(0,`rgba(255,245,215,${.22*(1-N)+.06})`);sk.addColorStop(.5,'rgba(255,245,215,0)');x.fillStyle=sk;x.fillRect(w.x-w.wr,w.y-w.wr,w.wr*2,w.wr*2);
+  // glints
+  for(let i=0;i<10;i++){let a=i*2.39+t/7000,rr=(i*61)%(w.wr-30),px=w.x+Math.cos(a)*rr,py=w.y+Math.sin(a)*rr*.8,al=Math.max(0,Math.sin(t/400+i*1.7));x.fillStyle=`rgba(255,250,220,${al*.5*(1-N*.6)})`;x.beginPath();x.ellipse(px,py,6*al,1.4*al,0,0,TAU);x.fill()}
+  x.restore()}
+ for(const r of RIP){if(r.t<0)continue;const k=r.t/r.m;x.strokeStyle=`rgba(${r.c||'235,250,255'},${(1-k)*.7})`;x.lineWidth=2*(1-k)+.5;x.beginPath();x.ellipse(r.x,r.y,r.r*(.3+k*1.6),r.r*(.3+k*1.6)*(r.up?1:.55),0,0,TAU);x.stroke()}
+ // contact AO + long directional shadows
+ const su=sunInfo(),ca=Math.cos(su.a),sa=Math.sin(su.a);
+ for(const d of _nd6(TALL_G,x0,y0,x1,y1,200)){const arr=SPR[d.k];if(!arr||!arr.length||!inV(d,200))continue;const sp=arr[d.v%arr.length],sc=d.s*(sp.img.tagName=='IMG'?1:.68),w=sp.w*sc,h=sp.h*sc,bx=d.x+(d.oxc||0);
+  x.globalAlpha=.75;x.drawImage(SHB,bx-w*.42,d.y-w*.13,w*.84,w*.26);
+  if(Q>=1&&su.al>.03&&d.k!='waterfall'){x.save();x.globalAlpha=su.al;x.translate(bx,d.y);x.rotate(su.a);const L=h*su.len*.55;x.drawImage(SHB,-w*.15,-w*.28,L+w*.3,w*.56);x.restore()}}
+ x.globalAlpha=1}
+// ---------- Lottie hop/emotes, NPC friends, followers, helper arrows ----------
+function drawCritter(id,px,py,h,t,vx,alt=0,joy=0){const sk=SMAP[id],im=IMG[sk];if(!im)return;const w=im.width*h/im.height,f=FACE[sk]||0,dir=vx>8?1:vx<-8?-1:0;let flip=f&&dir?dir*f<0:false;
+ shadowE(x,px,py+2,w*.32,w*.1,alt?.25:.45);const fl=FLAP[id],bob=Math.sin(t/300+px)*1.5+(joy?Math.abs(Math.sin(joy*12))*10*joy:0);
+ x.save();x.translate(px,py-alt-bob);if(flip)x.scale(-1,1);if(fl=='wing'){x.scale(.8+.2*Math.abs(Math.sin(t/120)),1)}else if(fl=='buzz')x.rotate(Math.sin(t/40)*.04);else x.scale(1+Math.sin(t/260)*.03,1-Math.sin(t/260)*.03);
+ x.shadowColor='rgba(255,230,170,.8)';x.shadowBlur=8*zoom*DPR;x.drawImage(im,-w/2,-h,w,h);x.restore();x.shadowBlur=0;x.shadowColor='transparent';
+ if(id=='firefly'&&N>.2){x.save();x.globalCompositeOperation='lighter';let g=x.createRadialGradient(px,py-alt-h*.4,0,px,py-alt-h*.4,40);g.addColorStop(0,`rgba(220,255,140,${.6*N})`);g.addColorStop(1,'rgba(220,255,140,0)');x.fillStyle=g;x.fillRect(px-40,py-alt-h*.4-40,80,80);x.restore()}}
+function bubble(px,py,txt,a=1){x.save();x.globalAlpha=a;x.font='600 15px Georgia, serif';const w=Math.min(260,x.measureText(txt).width+22),lines=[];let cur='';for(const wd of txt.split(' ')){if(x.measureText(cur+' '+wd).width>236&&cur){lines.push(cur);cur=wd}else cur=cur?cur+' '+wd:wd}lines.push(cur);
+ const bh=lines.length*19+14,bx=px-w/2,by=py-bh;x.fillStyle='rgba(255,248,228,.96)';x.strokeStyle='rgba(120,80,40,.6)';x.lineWidth=2;x.beginPath();x.roundRect?x.roundRect(bx,by,w,bh,10):x.rect(bx,by,w,bh);x.fill();x.stroke();x.beginPath();x.moveTo(px-7,py);x.lineTo(px,py+9);x.lineTo(px+7,py);x.fill();
+ x.fillStyle='#5a3a1c';x.textAlign='center';x.textBaseline='top';lines.forEach((l,i)=>x.fillText(l,px,by+8+i*19));x.restore()}
+function arrowTo(P,o,col,t){const a=Math.atan2(o.y-P.y,o.x-P.x),r=58+Math.sin(t/250)*4;x.save();x.translate(P.x+Math.cos(a)*r,P.y-40+Math.sin(a)*r*.7);x.rotate(a);x.fillStyle=`rgba(${col},.85)`;x.shadowColor=`rgba(${col},1)`;x.shadowBlur=8;x.beginPath();x.moveTo(9,0);x.lineTo(-5,-6);x.lineTo(-2,0);x.lineTo(-5,6);x.fill();x.restore()}
+const _dp6=drawPlayer;drawPlayer=function(P,t){if(!G)return _dp6(P,t);
+ for(const n of G.npc||[]){if(dist(n.x,n.y,cam.x,cam.y)>1400)continue;const f=n.f,sleepy=f.id=='firefly'&&N<.55;drawCritter(f.id,n.x,n.y,f.h*1.15,t*(sleepy?.4:1),Math.sin(t/2000+n.t)*20,FRI[f.id].fly&&!sleepy?16:0);
+  if(n.near)bubble(n.x,n.y-f.h*1.3-24,`${f.n}: “${f.task}”`);else{x.font='20px serif';x.textAlign='center';x.globalAlpha=.6+.4*Math.sin(t/400);x.fillText(sleepy?'💤':'💬',n.x+18,n.y-f.h*1.3-10-Math.sin(t/500)*3);x.globalAlpha=1}}
+ const behind=(G.fr||[]).filter(f=>f.y<=P.y),front=(G.fr||[]).filter(f=>f.y>P.y);
+ for(const f of behind)drawCritter(friendSpr(f.id),f.x,f.y,FRI[f.id].h*.9,t,f.vx,f.alt,f.joy);
+ const hop=P.hop>0?Math.sin(Math.PI*(1-P.hop))*16:0;x.save();x.translate(0,-hop);_dp6(P,t);x.restore();
+ for(const f of front)drawCritter(friendSpr(f.id),f.x,f.y,FRI[f.id].h*.9,t,f.vx,f.alt,f.joy);
+ if(P.emo){const a=Math.min(1,P.emo.t*2),s=1+Math.max(0,P.emo.t-1.3)*1.5;x.save();x.globalAlpha=a;x.translate(P.x+22,P.y-118-hop-(1.6-P.emo.t)*8);x.scale(s,s);x.fillStyle='rgba(255,250,235,.95)';x.beginPath();x.arc(0,0,15,0,TAU);x.fill();x.strokeStyle='rgba(140,90,40,.5)';x.lineWidth=2;x.stroke();
+  x.font='bold 20px Georgia';x.textAlign='center';x.textBaseline='middle';x.fillStyle=P.emo.k=='♥'?'#e0405a':'#7a4a1a';x.fillText(P.emo.k,0,1);x.restore()}
+ if(G.pointI)arrowTo(P,G.pointI,'255,215,90',t);if(G.pointB)arrowTo(P,G.pointB,'200,160,255',t)};
+// heart particles
+const _sp6=sparkle;
+// ---------- screen space: canopy dapple, firefly friend light, depth of field, quality autoscale ----------
+const dofC=document.createElement('canvas'),dofG=dofC.getContext('2d');let dofMask=null,dofKey='';
+const CANOPY={woods:1,pine:1,autumn:.8,log:.7,waterfall:.5};
+const _mm6=drawMinimap;drawMinimap=function(){const now=performance.now();if(lastFrame){const ft=now-lastFrame;qT=qT*.95+ft*.05;if(QAUTO&&state=='play'){if(qT>21)qBad+=ft;else qBad=Math.max(0,qBad-ft*.5);if(qBad>2500&&Q>0){Q--;qBad=0;qT=16;if(Q==0){DPR=1;cv.width=W;cv.height=H}console.log('quality ->',Q)}}}lastFrame=now;
+ if(G&&(state=='play'||state=='slowmo'||state=='reveal'||state=='journal')){const z=zoom,P=G.P;x.save();x.setTransform(DPR,0,0,DPR,0,0);
+  // canopy: light filtering through leaves, moving dapples
+  let cf=0;for(const k in CANOPY){const b=BIO[k];cf=Math.max(cf,CANOPY[k]*clamp(1.25-dist(cam.x,cam.y,b.x,b.y)/b.r,0,1))}cf=Math.max(cf,.12);
+  if(Q>=1&&(1-N)>.05){x.globalCompositeOperation='multiply';x.fillStyle=`rgba(${200-40*cf|0},${210-40*cf|0},${170-30*cf|0},${.35*cf*(1-N)})`;x.fillRect(0,0,W,H);
+   x.globalCompositeOperation='lighter';const ts=512*z*.75;for(const [k,sx,sy,al] of[[0,.012,.006,.22],[1,-.008,.01,.16]]){const ox=(((-cam.x*z+now*sx*z)%ts)+ts)%ts,oy=(((-cam.y*z+now*sy*z)%ts)+ts)%ts;x.globalAlpha=al*cf*(1-N)*(.85+.15*Math.sin(now/1700+k));for(let px=ox-ts;px<W;px+=ts)for(let py=oy-ts;py<H;py+=ts)x.drawImage(DAPPLE,px,py,ts,ts)}x.globalAlpha=1}
+  // Glimmer lights the night
+  if(SV.d.friends.includes('firefly')&&N>.2){x.globalCompositeOperation='lighter';const px=(P.x-cam.x)*z+W/2,py=(P.y-30-cam.y)*z+H/2,r=330*z;let g=x.createRadialGradient(px,py,0,px,py,r);g.addColorStop(0,`rgba(255,220,140,${.3*N})`);g.addColorStop(.5,`rgba(220,255,150,${.12*N})`);g.addColorStop(1,'rgba(200,255,150,0)');x.fillStyle=g;x.fillRect(px-r,py-r,r*2,r*2)}
+  x.globalCompositeOperation='source-over';
+  // depth of field at edges (cheap: blurred downsample masked to the borders)
+  if(Q>=2){const dw=Math.max(2,W/5|0),dh=Math.max(2,H/5|0);if(dofKey!=dw+'x'+dh){dofKey=dw+'x'+dh;dofC.width=dw;dofC.height=dh;dofMask=document.createElement('canvas');dofMask.width=dw;dofMask.height=dh;const m=dofMask.getContext('2d'),gr=m.createRadialGradient(dw/2,dh/2,Math.min(dw,dh)*.42,dw/2,dh/2,Math.hypot(dw,dh)*.55);gr.addColorStop(0,'rgba(0,0,0,0)');gr.addColorStop(1,'rgba(0,0,0,1)');m.fillStyle=gr;m.fillRect(0,0,dw,dh)}
+   dofG.globalCompositeOperation='copy';dofG.filter='blur(1.5px)';dofG.drawImage(cv,0,0,dw,dh);dofG.filter='none';dofG.globalCompositeOperation='destination-in';dofG.drawImage(dofMask,0,0);x.imageSmoothingEnabled=true;x.globalAlpha=.85;x.drawImage(dofC,0,0,W,H);x.globalAlpha=1}
+  x.restore()}
+ _mm6()};
+// heart-shaped particles: draw as small hearts by reusing star renderer colour (pink); ok as is.
+// ---------- richer, more natural ground (detail layers + relief shading) ----------
+const _bg6=bakeGround;bakeGround=function(tex){const g=_bg6(tex);if(!g)return g;const c=g.getContext('2d');c.save();c.setTransform(GS,0,0,GS,0,0);const R=mulberry(4242);
+ const bm=(px,py)=>biomeAt(px,py);
+ // soil patches & moss cushions
+ for(let i=0;i<5200;i++){const px=R()*MW,py=R()*MH,b=bm(px,py),r=4+R()*14;
+  if(b=='dunes'||b=='cave'){c.fillStyle=b=='dunes'?`rgba(${190+R()*40|0},${160+R()*30|0},${110+R()*30|0},.35)`:`rgba(${90+R()*50|0},${95+R()*50|0},${120+R()*50|0},.35)`;c.beginPath();c.ellipse(px,py,r,r*.6,R()*3,0,TAU);c.fill();continue}
+  if(R()<.35){c.fillStyle=`rgba(${70+R()*30|0},${50+R()*20|0},${25+R()*15|0},.28)`;c.beginPath();c.ellipse(px,py,r*1.6,r,R()*3,0,TAU);c.fill()}
+  else{const gr=c.createRadialGradient(px-r*.3,py-r*.35,0,px,py,r);const gcol=b=='autumn'?[170,120,40]:b=='pine'?[70,100,50]:[110+R()*40|0,150+R()*30|0,50];gr.addColorStop(0,`rgba(${gcol[0]+50},${gcol[1]+40},${gcol[2]+30},.55)`);gr.addColorStop(.7,`rgba(${gcol[0]},${gcol[1]},${gcol[2]},.4)`);gr.addColorStop(1,`rgba(${gcol[0]*.4|0},${gcol[1]*.4|0},${gcol[2]*.4|0},0)`);c.fillStyle=gr;c.beginPath();c.arc(px,py,r,0,TAU);c.fill()}}
+ // leaf litter, twigs, tiny pebbles
+ for(let i=0;i<9000;i++){const px=R()*MW,py=R()*MH,b=bm(px,py);if(b=='dunes'){if(R()<.6)continue}if(inWater(px,py,0))continue;const k=R();
+  if(k<.45){const cols=b=='autumn'?['#c86a24','#e09a3a','#8a3a12']:b=='pine'?['#8a6a3a','#6a4a24']:['#8a7a3a','#a08a4a','#6a5a2a','#9a6a2a'];c.fillStyle=cols[i%cols.length];c.globalAlpha=.55;c.save();c.translate(px,py);c.rotate(R()*TAU);c.beginPath();c.ellipse(0,0,4+R()*5,1.6+R()*2.2,0,0,TAU);c.fill();c.globalAlpha=.25;c.fillStyle='#000';c.fillRect(-4,-.3,8,.6);c.restore()}
+  else if(k<.6){c.strokeStyle='rgba(90,60,30,.55)';c.lineWidth=1.4+R();c.save();c.translate(px,py);c.rotate(R()*TAU);c.beginPath();c.moveTo(-8-R()*8,0);c.lineTo(8+R()*8,R()*3-1.5);c.stroke();c.restore()}
+  else{const r=1.5+R()*3;c.globalAlpha=.8;c.fillStyle='rgba(30,20,10,.35)';c.beginPath();c.ellipse(px+1,py+1.2,r,r*.7,0,0,TAU);c.fill();c.fillStyle=b=='cave'?'#a8b0c8':'#b8a888';c.beginPath();c.ellipse(px,py,r,r*.7,0,0,TAU);c.fill();c.fillStyle='rgba(255,255,240,.5)';c.beginPath();c.ellipse(px-r*.3,py-r*.25,r*.4,r*.25,0,0,TAU);c.fill()}
+  c.globalAlpha=1}
+ c.restore();
+ // relief shading from luminance gradient (normal-ish lighting from top-left)
+ try{const Wd=g.width,Hd=g.height,id=c.getImageData(0,0,Wd,Hd),p=id.data,L=new Float32Array(Wd*Hd);for(let i=0,j=0;i<L.length;i++,j+=4)L[i]=p[j]*.3+p[j+1]*.59+p[j+2]*.11;
+  for(let yy=1;yy<Hd-1;yy++)for(let xx=1;xx<Wd-1;xx++){const i=yy*Wd+xx,gr=(L[i-Wd-1]+L[i-1]+L[i-Wd])-(L[i+Wd+1]+L[i+1]+L[i+Wd]),s=clamp(1+gr*.0022,.8,1.22),j=i*4;p[j]=Math.min(255,p[j]*s);p[j+1]=Math.min(255,p[j+1]*s);p[j+2]=Math.min(255,p[j+2]*s)}
+  c.putImageData(id,0,0)}catch(e){}
+ return g};
+// ---------- Friends tab in the journal ----------
+const _rj6=renderJournal;renderJournal=function(){const fr=jTab=='friend';if(fr)jTab='bug';_rj6();if(fr){jTab='friend';[...tabs.children].forEach(b=>b.className='b n')}
+ const b=document.createElement('button');b.className='b '+(fr?'':'n');b.style.cssText='font-size:14px;padding:7px 10px';b.textContent=`🤝 Friends ${SV.d.friends.length}/${FRIENDS.length}`;b.onclick=()=>{jTab='friend';S.pop();renderJournal()};tabs.appendChild(b);
+ if(!fr)return;const el=$('jGrid');el.innerHTML='';
+ for(const f of FRIENDS){const has=SV.d.friends.includes(f.id),d=document.createElement('div');d.className=`card ${has?'rare':'common'}`;d.appendChild(portrait(friendSpr(f.id),90,64,2,false,!has));
+  d.insertAdjacentHTML('beforeend',`<div class="nm">${has?(f.id=='caterpillar'&&SV.d.bfly?'Pip the Butterfly':f.n):f.n}</div><div class="tag" style="color:${has?'#3a8a3a':'#8a6a3a'}">${has?'💞 Friend':'📍 '+BIO[f.home].n+' · '+f.tl}</div>`);
+  d.title=has?f.help:`${f.n} lives in ${BIO[f.home].n}. Task: ${f.tl}. Reward: ${f.help}`;el.appendChild(d)}};
+// ---------- quality setting in the sound panel ----------
+(()=>{const p=document.querySelector('#sSound .parch');if(!p)return;const b=document.createElement('button');b.className='b n';b.style.marginTop='8px';const lbl=()=>b.textContent='✨ Graphics: '+(QAUTO?'Auto':['Low','Medium','High'][Q]);lbl();
+ b.onclick=()=>{S.pop();if(QAUTO){QAUTO=false;Q=2}else if(Q>0)Q--;else{QAUTO=true;Q=2}if(Q>0&&DPR<Math.min(2,devicePixelRatio||1))resize();lbl()};const last=p.querySelector('button');last?last.parentNode.insertBefore(b,last):p.appendChild(b)})();
+window.__v6={get Q(){return Q},BUF,FRIENDS,react,surface};

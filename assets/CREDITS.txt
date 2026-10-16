@@ -19,3 +19,11 @@ Recorded sounds (all CC0 / public domain, no attribution required; credited anyw
   (pitched up and high-passed to sound like tiny leaf-litter steps)
   https://opengameart.org/content/fantozzis-footsteps-grasssand-stone
 Edits: converted to mono MP3, filtered/trimmed with ffmpeg.
+
+v6 additions (assets/sfx/, all CC0, pitched/filtered/trimmed with ffmpeg):
+- moss1-3, sand*(trail use), stone3, cave3: Kenney "Impact Sounds" (footstep_grass_*, footstep_concrete_*), CC0 – https://kenney.nl/assets/impact-sounds
+- sand1-3, stone1-2, cave1-2: Fantozzi's Footsteps (Sand & Stone), CC0 – https://opengameart.org/content/fantozzis-footsteps-grasssand-stone (cave = added echo)
+- leaves1-3, rustle: Kenney "RPG Audio" (footstep01/04/07) and Impact Sounds (footstep_grass_001), CC0 – https://kenney.nl/assets/rpg-audio
+- bush: Kenney RPG Audio cloth2, CC0; squish: Kenney impactSoft_medium_001, CC0; stoneroll: Kenney impactMining_002, CC0
+- water1-3: original, synthesized (numpy) – no CC0 splash with a clean licence was found.
+- Chimes, crystal bell tones, boing, buzz, chirps, friend jingles: synthesized live with the Web Audio API.
